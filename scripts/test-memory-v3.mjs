@@ -15,7 +15,7 @@ const vars=["YATSUMIRA_MEMORY_EMBED_URL","YATSUMIRA_MEMORY_EMBED_KEY","YATSUMIRA
 const oldVars=Object.fromEntries(vars.map(name=>[name,process.env[name]]));
 try{
   process.chdir(dir);
-  assert.equal(coreStatus().version,7);
+  assert.equal(coreStatus().version,8);
   assert.equal(extractCandidates("Договор № D-123: срок оплаты составляет 30 дней.").some(x=>x.predicate==="payment_days"&&x.object==="30"),true);
   const first=addKnowledge({content:"Договор № D-123. Срок оплаты составляет 30 дней. ООО «Северный Берег» выполняет поставку.",sector:1,source:"note"});
   const second=addKnowledge({content:"Договор № D-123. Срок оплаты составляет 45 дней. ООО «Северный Берег» уточняет условия.",sector:1,source:"note"});
