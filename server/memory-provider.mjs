@@ -6,6 +6,7 @@
 import {withCoreDatabase} from "./core-db.mjs";
 import {confidential} from "./memory-store.mjs";
 import {recallMemory} from "./long-memory.mjs";
+import {graphRecall} from "./universal-memory-graph.mjs";
 import {storeEmbedding,vectorRecall,reciprocalFusion,rerankCandidates} from "./memory-vectors.mjs";
 function settings(){
   const url=process.env.YATSUMIRA_MEMORY_EMBED_URL||"";
@@ -88,21 +89,24 @@ export async function rerankWithProvider(query,items,{request=fetch}={}){
 }
 export async function hybridRecall(query,{limit=8,request=fetch}={}){
   const lexical=recallMemory(query,{limit:Math.min(30,Math.max(limit*3,12))});
-  if(!settings())return {mode:"lexical-subword",results:lexical.slice(0,limit)};
+  const associations=graphRecall(query,{limit:Math.min(20,Math.max(limit*2,8)),hops:2});
+  // Graph links are candidate relations, not facts: any retrieved text retains its source.
+  const local=associations.length?reciprocalFusion(lexical,associations,{limit:Math.max(15,limit*3)}):lexical;
+  if(!settings())return {mode:"lexical-subword",results:local.slice(0,limit),graphResults:associations.length};
   try{
     const embedding=await embedText(query,{request});
     const semantic=vectorRecall(embedding.vector,{model:embedding.model,limit:Math.min(50,limit*3)});
     // All results must obey the same secret filter as lexical recall.
     const filtered=semantic.filter(row=>!confidential.test(row.content));
-    const fusion=reciprocalFusion(lexical,filtered,{limit:Math.max(12,limit)});
+    const fusion=reciprocalFusion(local,filtered,{limit:Math.max(12,limit)});
     let ranked=fusion;
     let reranked=false;
     try{
       if(rerankerSettings()){ranked=await rerankWithProvider(query,fusion,{request});reranked=true;}
     }catch{/* No reranker may block the user chat. Keep the hybrid results. */}
-    return {mode:"hybrid-neural",results:ranked.slice(0,limit),model:embedding.model,reranked};
+    return {mode:"hybrid-neural",results:ranked.slice(0,limit),model:embedding.model,reranked,graphResults:associations.length};
   }catch{
     // Provider outages cannot stop local memory or the normal chat response.
-    return {mode:"lexical-fallback",results:lexical.slice(0,limit)};
+    return {mode:"lexical-fallback",results:local.slice(0,limit),graphResults:associations.length};
   }
 }
