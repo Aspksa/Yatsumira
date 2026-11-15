@@ -6,6 +6,7 @@ import {DatabaseSync} from "node:sqlite";
 import {mkdirSync,readFileSync} from "node:fs";
 import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
+import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
 const SCHEMA=2;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
@@ -96,6 +97,7 @@ export function withCoreDatabase(fn){
         setMeta(db,"schema_version",SCHEMA);
       }
       migrateLegacy(db);
+      importLegacyMemory(db,250);
     });
     return fn(db);
   }finally{db.close();}
@@ -128,6 +130,7 @@ export function addKnowledge(input){
       id:row.id,overlap:newWords.filter(w=>tokenize(row.content).includes(w)).length
     })).filter(row=>row.overlap>=2).sort((a,b)=>b.overlap-a.overlap).slice(0,4);
     insertKnowledge(db).run(id,title,content,sector,"fact",source==="note"?2:1,source,0,hash,category(content),now());
+    indexMemory(db,{sourceKind:"knowledge",sourceId:id,content,importance:source==="note"?3:2,confidence:.65,verified:false});
     const edge=db.prepare("INSERT INTO knowledge_links(source_id,target_id,kind,strength) VALUES(?,?,?,?)");
     for(const item of related)edge.run(id,item.id,"shared-terms",item.overlap);
     setMeta(db,"knowledge_revision",revision(db)+1);
