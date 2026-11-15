@@ -11,12 +11,13 @@ function hash(str:string):number{let a=2166136261;for(let i=0;i<str.length;i++){
 function anchor(sector:number,index:number,count:number,mode:NexusMode):NexusPoint {
   if(mode==="hex"){
     const a=(-90+sector*45)*Math.PI/180;
-    const radius=sector%2===0?190:235;
+    const radius=132+index*72;
     return {x:Math.cos(a)*radius,y:Math.sin(a)*radius};
   }
   if(mode==="circle"){
-    const a=(-90+(sector+index/(count+1))*45)*Math.PI/180;
-    return {x:Math.cos(a)*(210+index%2*40),y:Math.sin(a)*(210+index%2*40)};
+    const a=(-90+sector*45)*Math.PI/180 + (index-(count-1)/2)*.11;
+    const radius=155+index*64;
+    return {x:Math.cos(a)*radius,y:Math.sin(a)*radius};
   }
   const a=(-90+sector*45)*Math.PI/180;
   return {x:Math.cos(a)*218,y:Math.sin(a)*218};
@@ -50,6 +51,7 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
     buckets.get(key)!.push(node);
   }
   const perSector=Array.from({length:8},()=>[] as [string,NexusNode[]][]);
+  const initialCenters=new Map<string,NexusPoint>();
   for(const entry of buckets){perSector[entry[1][0].sector].push(entry);}
   for(let sector=0;sector<8;sector++){
     const entries=perSector[sector].sort((a,b)=>a[0].localeCompare(b[0],"ru"));
@@ -60,13 +62,16 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
       const real=nodes.some(node=>node.actual);
       const cellRadius=Math.max(25,Math.min(56,15+Math.sqrt(nodes.length)*3));
       const center={...origin};
+      let initialX=center.x,initialY=center.y;
       if(mode==="force"){
         // Seeded, stable starting positions; force relaxation follows below.
         const jitter=(hash(key)-.5)*60;
         center.x+=Math.cos(sector*Math.PI/4)*jitter;
         center.y+=Math.sin(sector*Math.PI/4)*jitter;
+        initialX=center.x;initialY=center.y;
       }
       groups.push({id:key,label:name,sector,count:nodes.length,x:center.x,y:center.y,radius:cellRadius});
+      initialCenters.set(key,{x:initialX,y:initialY});
       const cols=Math.ceil(Math.sqrt(nodes.length));
       const spacing=Math.min(9,Math.max(3,cellRadius*1.55/Math.max(cols,1)));
       nodes.forEach((node,j)=>{
@@ -79,7 +84,7 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
           positions.set(node.id,{x:center.x+x*spacing,y:center.y+y*spacing});
         }
       });
-      if(!real && mode==="force"){} // Demo points remain identified as demos.
+      // Demo points remain distinguishable by their stored actual flag.
     }
   }
   if(mode==="force"){
@@ -117,7 +122,7 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
     for(const group of active){
       const prefix=group.id+"";
       const nodes=buckets.get(prefix)??[];
-      const original=anchor(group.sector,perSector[group.sector].findIndex(entry=>entry[0]===prefix),perSector[group.sector].length,mode);
+      const original=initialCenters.get(prefix) ?? {x:group.x,y:group.y};
       const dx=group.x-original.x,dy=group.y-original.y;
       for(const node of nodes){
         const p=positions.get(node.id);
