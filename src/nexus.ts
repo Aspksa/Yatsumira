@@ -433,13 +433,14 @@ export class NexusView {
         const angle=Math.atan2(ny,nx);
         const radialX=Math.cos(angle),radialY=Math.sin(angle);
         const tangentX=-radialY,tangentY=radialX;
-        ctx.globalAlpha=.35;
-        for(let cell=0;cell<6;cell++){
-          const along=(cell%3-1)*4.0;
-          const across=(Math.floor(cell/3)*2-1)*3.1;
+        ctx.globalAlpha=.38;
+        const microCount=this.quality>.9?12:6;
+        for(let cell=0;cell<microCount;cell++){
+          const along=(cell%4-1.5)*3.7;
+          const across=(Math.floor(cell/4)-1)*3.6;
           const px=nx+radialX*along+tangentX*across;
           const py=ny+radialY*along+tangentY*across;
-          ctx.fillRect(px-.68,py-.68,1.36,1.36);
+          ctx.fillRect(px-.82,py-.82,1.64,1.64);
         }
         ctx.globalAlpha=node.actual?1:Math.max(.34,.43+pulse);
       }
