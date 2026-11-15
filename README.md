@@ -214,3 +214,7 @@ The embedding adapter sends {model,input} to the explicitly configured HTTPS end
 The embed command requires a real configured provider. Background maintenance never contacts an embedding provider. Full snapshots are still available via scripts/core-maintenance.mjs. New tests (scripts/test-memory-v3.mjs) use actual SQLite data and mocked network contracts on Windows/Linux.
 
 These mechanisms do not imply verified semantic understanding or independent decisions about Russian contract law. They provide traceable candidates and retrieval for later professional review.
+
+### Reviewed contract facts and conflicts (backend-only)
+
+Automated contradiction checks only create **pending candidates**. They never alter a signed contract or resolve a disagreement independently. To approve a candidate, use `node scripts/memory-v3.mjs review-fact FACT_ID reviewed "Source: signed contract and date"`; to reject, use `review-fact FACT_ID rejected "Reason"`. To dismiss or resolve a reported conflict, use `node scripts/memory-v3.mjs resolve-conflict CONFLICT_ID dismissed "Reason"` or `resolved "Evidence and rationale"`. Decisions require evidence text and create audit events in SQLite. These actions do not edit the source files or overwrite prior memory.
