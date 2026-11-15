@@ -17,6 +17,79 @@ let pixelRatio = 1;
 let pointerX = -9999;
 let pointerY = -9999;
 let activeSector = -1;
+
+let zoom = 1;
+let targetZoom = 1;
+let panX = 0;
+let panY = 0;
+let targetPanX = 0;
+let targetPanY = 0;
+let animationSpeed = 1;
+const zoomMin = .65;
+const zoomMax = 3.5;
+const settingsButton = document.querySelector<HTMLButtonElement>("#settings-toggle");
+const settingsPanel = document.querySelector<HTMLElement>("#settings-panel");
+const speedInput = document.querySelector<HTMLInputElement>("#animation-speed");
+const widthInput = document.querySelector<HTMLInputElement>("#chat-width");
+const speedValue = document.querySelector<HTMLOutputElement>("#speed-value");
+const widthValue = document.querySelector<HTMLOutputElement>("#width-value");
+const resetViewButton = document.querySelector<HTMLButtonElement>("#reset-view");
+const resetSettingsButton = document.querySelector<HTMLButtonElement>("#reset-settings");
+if (!settingsButton || !settingsPanel || !speedInput || !widthInput || !speedValue || !widthValue || !resetViewButton || !resetSettingsButton) {
+  throw new Error("Settings controls are missing");
+}
+type Preferences = { speed?: number; width?: number };
+let preferences: Preferences = {};
+try {
+  const raw: unknown = JSON.parse(localStorage.getItem("yatsumira-ui") || "{}");
+  if (raw && typeof raw === "object") preferences = raw as Preferences;
+} catch { /* Invalid or disabled local storage */ }
+function clamp(n: number, low: number, high: number): number { return Math.max(low,Math.min(high,n)); }
+if (typeof preferences.speed === "number" && Number.isFinite(preferences.speed)) speedInput.value = String(clamp(preferences.speed,0,200));
+if (typeof preferences.width === "number" && Number.isFinite(preferences.width)) widthInput.value = String(clamp(preferences.width,25,55));
+function syncSettings(): void {
+  animationSpeed = Number(speedInput!.value)/100;
+  speedValue!.value = speedInput!.value+"%";
+  const widthPercent = Number(widthInput!.value);
+  widthValue!.value = widthPercent+"%";
+  document.documentElement.style.setProperty("--chat-share", String(widthPercent/100));
+  try { localStorage.setItem("yatsumira-ui",JSON.stringify({speed:Number(speedInput!.value),width:widthPercent})); } catch { /* Optional preference storage */ }
+}
+syncSettings();
+speedInput.addEventListener("input",syncSettings);
+widthInput.addEventListener("input",syncSettings);
+function resetView():void {targetZoom=1;targetPanX=0;targetPanY=0;}
+resetViewButton.addEventListener("click",resetView);
+resetSettingsButton.addEventListener("click",()=>{
+  speedInput.value="100"; widthInput.value="35"; syncSettings(); resetView();
+});
+function closeSettings():void {
+  settingsPanel!.hidden=true;
+  settingsButton!.setAttribute("aria-expanded","false");
+}
+settingsButton.addEventListener("click",()=>{
+  const opening=settingsPanel!.hidden;
+  settingsPanel!.hidden=!opening;
+  settingsButton!.setAttribute("aria-expanded",String(opening));
+});
+document.addEventListener("keydown",(event)=>{
+  if(event.key==="Escape" && !settingsPanel!.hidden) { closeSettings(); settingsButton!.focus(); }
+});
+document.addEventListener("pointerdown",(event)=>{
+  if (!settingsPanel!.hidden && event.target instanceof Node && !settingsPanel!.contains(event.target) && !settingsButton!.contains(event.target)) closeSettings();
+});
+canvas.addEventListener("wheel",(event:WheelEvent)=>{
+  event.preventDefault();
+  const bounds=canvas.getBoundingClientRect();
+  const px=event.clientX-bounds.left;
+  const py=event.clientY-bounds.top;
+  const previous=targetZoom;
+  targetZoom=clamp(previous*Math.exp(-event.deltaY*.0012),zoomMin,zoomMax);
+  const ratio=targetZoom/previous;
+  targetPanX=px-width/2-(px-width/2-targetPanX)*ratio;
+  targetPanY=py-height/2-(py-height/2-targetPanY)*ratio;
+},{passive:false});
+
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const started = performance.now();
 
@@ -44,12 +117,20 @@ function dot(x:number,y:number,r:number,color:string,glow=0):void {
 function point(cx:number,cy:number,r:number,a:number):[number,number] {return [cx+Math.cos(a)*r,cy+Math.sin(a)*r];}
 
 function frame(now:number):void {
-  const t = reducedMotion ? 0 : (now-started)/1000;
+  const t = reducedMotion ? 0 : (now-started)/1000*animationSpeed;
   ctx!.setTransform(pixelRatio,0,0,pixelRatio,0,0);
   ctx!.clearRect(0,0,width,height);
   const cx=width*.5, cy=height*.5;
+  const smooth = reducedMotion ? 1 : .2;
+  zoom += (targetZoom-zoom)*smooth;
+  panX += (targetPanX-panX)*smooth;
+  panY += (targetPanY-panY)*smooth;
+  ctx!.save();
+  ctx!.translate(cx+panX,cy+panY);
+  ctx!.scale(zoom,zoom);
+  ctx!.translate(-cx,-cy);
   const R=Math.min(width*.485,height*.465,385);
-  if (R<20) {requestAnimationFrame(frame);return;}
+  if (R<20) {ctx!.restore();requestAnimationFrame(frame);return;}
 
   const glow=ctx!.createRadialGradient(cx,cy,R*.07,cx,cy,R*1.2);
   glow.addColorStop(0,"#0b2628");glow.addColorStop(.28,"#071619");glow.addColorStop(.72,"#030a0e");glow.addColorStop(1,"#000000");
@@ -128,8 +209,9 @@ function frame(now:number):void {
   ctx!.font=`${Math.max(7,R*.020)}px Consolas,monospace`;ctx!.fillStyle="#648e8f";
   ctx!.fillText("NEXUS / 08",cx,cy+R*.201);
 
-  const dx=pointerX-cx,dy=pointerY-cy,pr=Math.hypot(dx,dy),theta=Math.atan2(dy,dx);
+  const dx=(pointerX-cx-panX)/zoom,dy=(pointerY-cy-panY)/zoom,pr=Math.hypot(dx,dy),theta=Math.atan2(dy,dx);
   activeSector=pr>R*.72&&pr<R*1.04?Math.round((theta+Math.PI/2)/(TWO_PI/8)+16)%8:-1;
+  ctx!.restore();
   requestAnimationFrame(frame);
 }
 canvas.addEventListener("pointermove",(event:PointerEvent)=>{
