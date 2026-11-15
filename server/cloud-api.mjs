@@ -1,3 +1,4 @@
+import { hybridRecall } from "./memory-provider.mjs";
 import {startCoreMaintenance,memoryMaintenanceStatus} from "./memory-maintenance.mjs";
 import { recallMemory, makeMemoryContext, memoryOverview } from "./long-memory.mjs";
 import { handleKnowledge } from "./knowledge-api.mjs";
@@ -176,7 +177,8 @@ export function cloudApiPlugin() {
               return json(res,400,{error:"Неверный формат сообщений"});
             }
             // Retrieve only bounded, relevant user-originated excerpts; no AI answer is silently learned as truth.
-            const recalled=makeMemoryContext(input.messages.at(-1).content,{maxChars:2500,limit:7});
+            const recall=await hybridRecall(input.messages.at(-1).content,{limit:7});
+            const recalled=makeMemoryContext(input.messages.at(-1).content,{maxChars:2500,limit:7,records:recall.results});
             const messages = [{ role:"system",content:ASSISTANT },
               ...(recalled.text?[{role:"system",content:recalled.text}]:[]),
               ...input.messages];
