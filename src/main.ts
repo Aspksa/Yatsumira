@@ -1,5 +1,6 @@
 import "./style.css";
 import { NexusView, type NexusNode } from "./nexus";
+import { isNexusMode } from "./nexus-modes";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#app");
 const log = document.querySelector<HTMLDivElement>("#messages");
@@ -9,6 +10,9 @@ const card = document.querySelector<HTMLElement>("#nexus-card");
 const cardTitle = document.querySelector<HTMLElement>("#nexus-card-title");
 const cardType = document.querySelector<HTMLElement>("#nexus-card-type");
 const cardDetails = document.querySelector<HTMLElement>("#nexus-card-details");
+const cardMeta = document.querySelector<HTMLElement>("#nexus-card-meta");
+const cardRelated = document.querySelector<HTMLElement>("#nexus-card-related");
+const modeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-nexus-mode]")];
 const cardClose = document.querySelector<HTMLButtonElement>("#nexus-card-close");
 const nexusMetrics = document.querySelector<HTMLElement>("#nexus-metrics");
 const nodeBadge = document.querySelector<HTMLElement>("#nexus-node-badge");
@@ -16,7 +20,7 @@ const knowledgeText = document.querySelector<HTMLTextAreaElement>("#knowledge-te
 const knowledgeSector = document.querySelector<HTMLSelectElement>("#knowledge-sector");
 const knowledgeButton = document.querySelector<HTMLButtonElement>("#knowledge-add");
 const knowledgeStatus = document.querySelector<HTMLElement>("#knowledge-status");
-if (!canvas || !log || !form || !input || !card || !cardTitle || !cardType || !cardDetails || !cardClose || !nexusMetrics || !nodeBadge || !knowledgeText || !knowledgeSector || !knowledgeButton || !knowledgeStatus) {
+if (!canvas || !log || !form || !input || !card || !cardTitle || !cardType || !cardDetails || !cardClose || !nexusMetrics || !cardMeta || !cardRelated || modeButtons.length!==4 || !nodeBadge || !knowledgeText || !knowledgeSector || !knowledgeButton || !knowledgeStatus) {
   throw new Error("Yatsumira interface elements missing");
 }
 const settingsButton = document.querySelector<HTMLButtonElement>("#settings-toggle");
@@ -35,12 +39,55 @@ function selectNode(node:NexusNode):void {
   cardType!.textContent=node.kind==="document"?"ДОКУМЕНТ":node.kind==="agent"?"АГЕНТ":"ФАКТ";
   nodeBadge!.textContent=node.actual?(node.verified?"ПОДТВЕРЖДЕНО":"НЕ ПРОВЕРЕНО"):"ДЕМО";
   cardDetails!.textContent=node.actual
-    ? (node.content || "Нет описания")+" · источник: "+(node.source==="chat"?"диалог":"заметка")
-    : "Демонстрационный узел · уровень "+(node.ring+1)+" · важность "+node.importance+
-      ". Реальные файлы и данные RAG пока не подключены.";
+    ? node.content || "Нет описания"
+    : "Демонстрационный элемент оформления. Файл или запись не загружены.";
+  cardMeta!.replaceChildren();
+  function detail(name:string,value:string):void {
+    const dt=document.createElement("dt");dt.textContent=name;
+    const dd=document.createElement("dd");dd.textContent=value;
+    cardMeta!.append(dt,dd);
+  }
+  detail("Категория",["Память","Знания","Агенты","Анализ","Проекты","Связи","Архив","Система"][node.sector] || "Неизвестно");
+  detail("Группа",node.group || (node.actual?"Записи":"Демонстрационная группа"));
+  detail("Источник",node.actual?(node.source==="chat"?"Диалог Cloud.ru":"Локальная заметка"):"Демо");
+  detail("Статус",node.actual?(node.verified?"Подтверждено":"Не проверено"):"Только оформление");
+  if(node.actual&&node.createdAt){
+    const time=new Date(node.createdAt);
+    detail("Создано",Number.isFinite(time.getTime())?time.toLocaleString("ru-RU"):node.createdAt);
+  }
+  if(node.actual)detail("ID",node.id);
+  cardRelated!.replaceChildren();
+  const connected=node.actual?nexus.connectedTo(node):[];
+  if(connected.length){
+    const caption=document.createElement("strong");caption.textContent="Связанные записи · "+connected.length;
+    cardRelated!.appendChild(caption);
+    for(const item of connected.slice(0,12)){
+      const button=document.createElement("button");
+      button.type="button";button.textContent=item.node.title;
+      button.title="Открыть связанную запись";
+      button.addEventListener("click",()=>nexus.selectById(item.node.id));
+      cardRelated!.appendChild(button);
+    }
+  }else if(node.actual){
+    const caption=document.createElement("small");caption.textContent="Связей пока нет";
+    cardRelated!.appendChild(caption);
+  }
   card!.hidden=false;
 }
 const nexus = new NexusView(canvas, selectNode);
+const savedMode=(() => {try{return localStorage.getItem("yatsumira-nexus-mode") || "rings";}catch{return "rings";}})();
+function activateMode(value:string):void {
+  if(!isNexusMode(value))return;
+  nexus.setMode(value);
+  for(const button of modeButtons)button.setAttribute("aria-pressed",String(button.dataset.nexusMode===value));
+  try{localStorage.setItem("yatsumira-nexus-mode",value);}catch{}
+  card!.hidden=true;
+}
+for(const button of modeButtons){
+  button.addEventListener("click",()=>activateMode(button.dataset.nexusMode || ""));
+}
+activateMode(savedMode);
+
 cardClose.addEventListener("click",()=>{card.hidden=true;canvas.focus();});
 document.addEventListener("keydown",event=>{if(event.key==="Escape" && !card.hidden)card.hidden=true;});
 let metricsUpdate = 0;
