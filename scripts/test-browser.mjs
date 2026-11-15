@@ -90,9 +90,18 @@ try {
   await page.locator('#app').focus();
   await page.keyboard.press('Enter');
   assert.equal(await page.locator('#nexus-card').isVisible(),true);
-  assert.match(await page.locator('#nexus-card-details').textContent(),/Демонстрационный узел/);
+  assert.match(await page.locator('#nexus-card-details').textContent(),/Демонстрационный элемент/);
   await page.locator('#nexus-card-close').click();
   assert.equal(await page.locator('#nexus-card').isVisible(),false);
+  for(const mode of ["circle","hex","force","rings"]){
+    await page.locator('[data-nexus-mode="'+mode+'"]').click();
+    await page.waitForFunction(value=>document.querySelector('#app')?.dataset.mode===value,mode);
+    assert.equal(await page.locator('[data-nexus-mode="'+mode+'"]').getAttribute('aria-pressed'),'true');
+    assert.ok(Number(await page.locator('#app').getAttribute('data-rendered'))>0);
+  }
+  await page.reload({waitUntil:'networkidle'});
+  assert.equal(await page.locator('#app').getAttribute('data-mode'),'rings');
+
   assert.equal(await page.locator('.chat-panel').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
   assert.equal(await page.locator('.chat-body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
   assert.equal(await page.locator('.cloud-section').count(),1);
