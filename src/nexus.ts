@@ -393,7 +393,9 @@ export class NexusView {
     const detail = this.quality<.5?"low":this.quality<.9?"medium":"high";
     for(const node of this.layout.nodes){
       // View-frustum culling before any paths, gradients or style changes.
-      if(node.x+7<viewLeft || node.x-7>viewRight || node.y+7<viewTop || node.y-7>viewBottom)continue;
+      const location=this.position(node);
+      const nx=location.x,ny=location.y;
+      if(nx+7<viewLeft || nx-7>viewRight || ny+7<viewTop || ny-7>viewBottom)continue;
       if(!node.actual && lod===3 && node.importance===1)continue;
       if(!node.actual && lod===2 && node.importance===1 && node.ring%2===0)continue;
       if(!node.actual && this.quality<.5 && node.importance===1 && node.ring%2===0)continue;
@@ -401,7 +403,7 @@ export class NexusView {
       const selected=node.id===this.selectedId;
       const hovered=node.id===this.hovered?.id;
       const pulse=this.reducedMotion||this.quality<.9?0:Math.sin(this.animationTime*1.5+node.ring+node.sector)*.15;
-      const outer=node.ring>=6;
+      const outer=this.mode==="rings"&&node.ring>=6;
       const r=(outer?Math.max(4,node.radius+1):node.actual?Math.max(2.7,node.radius):Math.min(2.1,node.radius))+(selected?2:hovered?1.3:0);
       ctx.globalAlpha=node.actual?1:Math.max(outer?.56:.34,outer?.65+pulse*.3:.43+pulse);
       ctx.strokeStyle=color;ctx.fillStyle=color;
@@ -410,29 +412,35 @@ export class NexusView {
       }
       if(outer){
         // Open-circle icons around the perimeter, as in the reference atlas.
-        ctx.beginPath();ctx.arc(node.x,node.y,r,0,TWO_PI);
+        ctx.beginPath();ctx.arc(nx,ny,r,0,TWO_PI);
         ctx.lineWidth=outer?1.15:.8;ctx.stroke();
         ctx.shadowBlur=0;
-        ctx.beginPath();ctx.arc(node.x,node.y,Math.max(1,r*.35),0,TWO_PI);
-        if(node.actual || node.importance>=2)ctx.fill();else ctx.stroke();
+        ctx.beginPath();ctx.arc(nx,ny,Math.max(1,r*.35),0,TWO_PI);
+        if(this.quality>.4&&this.zoom>.72)drawNexusGlyph(ctx,nx,ny,r,node.kind==="agent"?2:node.kind==="document"?1:node.sector,color);
         if(node.actual || selected){
-          ctx.beginPath();ctx.arc(node.x,node.y,r+2.2,0,TWO_PI);
+          ctx.beginPath();ctx.arc(nx,ny,r+2.2,0,TWO_PI);
           ctx.globalAlpha=.56;ctx.lineWidth=.8;ctx.stroke();
         }
       }else{
         // Compact rectilinear points form dense radial data blocks.
-        ctx.fillRect(node.x-r*.48,node.y-r*.48,r*.96,r*.96);
+        ctx.fillRect(nx-r*.48,ny-r*.48,r*.96,r*.96);
         if(node.actual || selected || (node.importance===3 && this.zoom>1.1)){
           ctx.shadowBlur=0;
-          ctx.beginPath();ctx.arc(node.x,node.y,r+1.5,0,TWO_PI);
+          ctx.beginPath();ctx.arc(nx,ny,r+1.5,0,TWO_PI);
           ctx.lineWidth=.65;ctx.globalAlpha=.63;ctx.stroke();
         }
       }
       ctx.shadowBlur=0;ctx.globalAlpha=1;
+      if(this.zoom>2.15&&(node.actual||selected||hovered||(this.zoom>3.3&&node.importance===3))){
+        ctx.font="8px Consolas, monospace";ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillStyle=color;ctx.globalAlpha=node.actual?.93:.55;
+        ctx.fillText(node.title.slice(0,28),nx,ny-r-9,120);
+        ctx.globalAlpha=1;
+      }
       drawn++;
     }
     // Precise concentric core occupies the quiet center of the map.
-    if(viewLeft<78&&viewRight>-78&&viewTop<78&&viewBottom>-78){
+    if(this.mode==="rings"&&viewLeft<78&&viewRight>-78&&viewTop<78&&viewBottom>-78){
       drawNexusCore(ctx,this.animationTime,this.quality>.65);
     }
     ctx.restore();
@@ -440,6 +448,8 @@ export class NexusView {
     this.canvas.dataset.rendered=String(drawn);
     this.canvas.dataset.total=String(this.layout.nodes.length);
     this.canvas.dataset.quality=detail;
+    this.canvas.dataset.mode=this.mode;
+    this.canvas.dataset.groupCount=String(this.placement.groups.length);
     this.canvas.dataset.zoom=this.zoom.toFixed(3);
     this.canvas.dataset.panX=this.panX.toFixed(1);
     this.canvas.dataset.knowledge=String(this.realNodes.length);
