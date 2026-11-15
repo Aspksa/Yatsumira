@@ -1,3 +1,4 @@
+import {randomUUID} from "node:crypto";
 /** Local SQLite memory integrity audit. Read-only metrics and maintenance checks. */
 import {withCoreDatabase} from "./core-db.mjs";
 const count=(db,sql)=>db.prepare(sql).get().n;
@@ -38,4 +39,18 @@ export function assertMemoryHealthy(){
   const result=inspectMemoryV5();
   if(!result.ok)throw Object.assign(new Error("CORE v5 memory audit failed: "+result.errors.join(", ")),{status:500,report:result});
   return result;
+}
+
+/** At most one persisted health snapshot per 24 hours, for USB-friendly audits. */
+export function maybeRecordMemoryHealth({minIntervalMs=86400000}={}){
+  const last=withCoreDatabase(db=>db.prepare("SELECT created_at AS createdAt FROM memory_quality_runs WHERE kind='sqlite-health' ORDER BY created_at DESC LIMIT 1").get());
+  if(last && Date.now()-Date.parse(last.createdAt)<Math.max(60000,minIntervalMs))
+    return {performed:false,reason:"not-due"};
+  const report=inspectMemoryV5();
+  withCoreDatabase(db=>{
+    const id=randomUUID();
+    db.prepare("INSERT INTO memory_quality_runs(id,kind,payload,created_at) VALUES(?,?,?,?)")
+      .run(id,"sqlite-health",JSON.stringify({ok:report.ok,errors:report.errors,structures:report.structures}),new Date().toISOString());
+  });
+  return {performed:true,ok:report.ok,errors:report.errors};
 }
