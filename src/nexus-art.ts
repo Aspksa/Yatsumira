@@ -140,12 +140,14 @@ export function drawNexusGroupShapes(ctx:CanvasRenderingContext2D,mode:"rings"|"
     ctx.save();
     ctx.textAlign="center";ctx.textBaseline="middle";
     for(const group of groups){
+      const demo=(group as {id?:string}).id?.startsWith("demo-") ?? false;
+      if(demo&&zoom<1.7)continue;
       const color=colors[group.sector]||"#69b9b2";
       ctx.strokeStyle=color;ctx.globalAlpha=.25;ctx.lineWidth=.8;
-      ctx.beginPath();ctx.arc(group.x,group.y,Math.max(10,group.radius),0,PI2);ctx.stroke();
+      if(!demo){ctx.beginPath();ctx.arc(group.x,group.y,Math.max(10,group.radius),0,PI2);ctx.stroke();}
       ctx.fillStyle=color;ctx.globalAlpha=.88;ctx.font="8px Consolas, monospace";
       ctx.fillText(group.label.slice(0,25),group.x,group.y-group.radius-10,115);
-      if(zoom>1.85){ctx.font="7px Consolas, monospace";ctx.globalAlpha=.6;ctx.fillText(group.count+" записей",group.x,group.y+group.radius+8,90);}
+      if(!demo&&zoom>1.85){ctx.font="7px Consolas, monospace";ctx.globalAlpha=.6;ctx.fillText(group.count+" записей",group.x,group.y+group.radius+8,90);}
     }
     ctx.restore();
     return;
