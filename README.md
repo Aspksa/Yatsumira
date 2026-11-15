@@ -362,3 +362,37 @@ All changes remain in server modules, SQLite and tests. The existing UI, NEXUS c
     node scripts/memory-v7.mjs compress MEMORY_ID_1 MEMORY_ID_2
 
 Source-backed alignments, evidence steps and association changes require manual CLI arguments. The modules do not call Cloud.ru or create AI interpretations automatically. CI validates CORE v7 with `scripts/test-memory-v7.mjs` on Windows/Linux alongside older migration and browser tests.
+
+## CORE v8 — universal memory, graph, experience and safe operations
+
+This backend-only upgrade keeps Node 22+, local SQLite on USB, Cloud.ru chat, and all existing UI unchanged. The v8 schema is additive: existing original memory entries, messages, graph assertions and procedures are retained.
+
+### Implemented mechanisms for selected roadmap items
+
+- **1–10 (source fusion):** source-attributed extractive merging across memory records, probable lexical duplicates and interference, verified-source-aware ranking priorities and diagnostic gaps. Identity resolution remains candidate-based and explicitly review-gated. The confidence and importance functions are heuristic: they do not represent trained probability calibration or neural semantic equivalence.
+- **11–20 (graph):** hyperedge relation counts, graph motifs (triangles, wedges), proposed missing links, structural vector similarity, temporal graph changes, path evidence, candidate conflicts and their adjacent-node impact. Structural vectors are not neural graph embeddings; causality is not inferred as fact.
+- **21–30 (experience):** existing procedural memories and task results plus recurring outcome patterns, source-linked decision outcomes, patterns of success/failure and questions about missing information. No autonomous skill execution or unsupervised model training is implied.
+- **31, 33, 35 (retrieval):** bounded multi-round agentic memory lookup, source-verified-flag aware ordering and explicit opposing-viewpoint review using existing conflict candidates. This is retrieval assistance, not independent verification.
+- **41–46 (background):** bounded persistent SQLite job queue, recovery of interrupted tasks, periodic graph and experience audits, health reports and preservation of existing checkpoints. Only local operations run; background jobs stop when the server closes.
+- **48–50 (quality):** labeled retrieval comparison with Recall@20 and MRR regression guard, persisted quality experiment records, health and graph integrity metrics. Shadow testing uses side-effect-free retrieval callbacks; a separate physical SQLite copy is required for experiments that write data.
+
+### Local commands (no new interface)
+
+    node scripts/memory-v8.mjs research "Как связаны мои проекты?"
+    node scripts/memory-v8.mjs fusion-preview "Сервис Альфа"
+    node scripts/memory-v8.mjs interference "Сервис Альфа"
+    node scripts/memory-v8.mjs motifs
+    node scripts/memory-v8.mjs hypergraph
+    node scripts/memory-v8.mjs evolution 2025-01-01 2026-11-16
+    node scripts/memory-v8.mjs paths "Робот Сокол" "Центр Омега"
+    node scripts/memory-v8.mjs patterns
+    node scripts/memory-v8.mjs gaps "Незнакомый проект"
+    node scripts/memory-v8.mjs jobs
+    node scripts/memory-v8.mjs quality
+    node scripts/memory-v8.mjs offline
+
+Write operations (e.g. `fuse`, `outcome`, `graph-snapshot`) are explicit CLI commands, with source IDs and non-destructive behavior. The existing background service schedules at-most-one graph audit and experience-pattern analysis per UTC day (date-keyed idempotency), and processes one queued job per maintenance tick. It never contacts a language model for these jobs.
+
+Limitations: semantic deduplication, graph causal discovery, neural graph alignment, reliable identity decisions, learned memory confidence, actual cross-domain transfer and calibrated factuality require additional model-backed implementation and evidence. The system intentionally keeps unreviewed patterns as candidates. `memory-v8-operations.mjs` has **no destructive database migration or automatic data repair**. A passing CI suite shows tested behavior, not an independent guarantee that complex conclusions are true.
+
+CI now runs `scripts/test-memory-v8.mjs` on Linux and Windows in addition to all earlier versions and the browser regression suite.
