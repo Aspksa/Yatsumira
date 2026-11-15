@@ -1,4 +1,5 @@
 import { handleKnowledge } from "./knowledge-api.mjs";
+import {coreOverview,conversationHistory,lookupKnowledge,commitAssistantExchange,validateChatMessages} from "./core-engine.mjs";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -91,7 +92,7 @@ export function cloudApiPlugin() {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const pathname = (req.url || "").split("?")[0];
-        if (!pathname.startsWith("/api/cloud/") && !pathname.startsWith("/api/knowledge/")) return next();
+        if (!pathname.startsWith("/api/cloud/") && !pathname.startsWith("/api/knowledge/") && !pathname.startsWith("/api/core/")) return next();
         const remote = req.socket.remoteAddress || "";
         if (!["127.0.0.1","::1","::ffff:127.0.0.1"].includes(remote)) return json(res,403,{error:"Local access only"});
         const origin = req.headers.origin;
@@ -104,6 +105,19 @@ export function cloudApiPlugin() {
         }
         try {
           if (pathname.startsWith("/api/knowledge/")) return await handleKnowledge(req,res,pathname);
+          // Backend-only CORE endpoints. The UI and chat markup stay unchanged.
+          if (pathname === "/api/core/status" && req.method === "GET")
+            return json(res,200,coreOverview());
+          if (pathname === "/api/core/history" && req.method === "GET") {
+            const u=new URL(req.url,"http://127.0.0.1");
+            const limit=Number(u.searchParams.get("limit")||50);
+            return json(res,200,{messages:conversationHistory(limit)});
+          }
+          if (pathname === "/api/core/search" && req.method === "GET") {
+            const u=new URL(req.url,"http://127.0.0.1");
+            const query=(u.searchParams.get("q")||"").slice(0,500);
+            return json(res,200,{results:lookupKnowledge(query,20),mode:"lexical"});
+          }
           if (pathname === "/api/cloud/config" && req.method === "GET") {
             return json(res,200,{configured:!!getKey(),persisted:existsSync(KEY_FILE),model:settings().model});
           }
@@ -144,15 +158,17 @@ export function cloudApiPlugin() {
             const key = getKey(), model = settings().model;
             if (!key || !model) return json(res,400,{error:"Настройте ключ и модель Cloud.ru"});
             const input = await body(req);
-            if (!Array.isArray(input.messages) || input.messages.length < 1 || input.messages.length > 30 ||
-                input.messages.some(m=>!["user","assistant"].includes(m?.role) || typeof m.content !== "string" ||
-                !m.content.trim() || m.content.length > 4000)) {
+            if (!validateChatMessages(input.messages)) {
               return json(res,400,{error:"Неверный формат сообщений"});
             }
             const messages = [{ role:"system",content:ASSISTANT },...input.messages];
             const response = await cloudRequest("/chat/completions",key,{method:"POST",data:{model,messages,stream:false}});
             const answer = response?.choices?.[0]?.message?.content;
             if (typeof answer !== "string" || !answer.trim()) return json(res,502,{error:"Cloud.ru вернул пустой ответ"});
+            // Save the complete user/assistant pair atomically only after a real response.
+            // This does not mark an AI output as a verified fact.
+            commitAssistantExchange({messages:input.messages,answer,model,
+              sessionId:input.sessionId,requestId:input.requestId});
             return json(res,200,{answer,model});
           }
           return json(res,404,{error:"Unknown endpoint"});
