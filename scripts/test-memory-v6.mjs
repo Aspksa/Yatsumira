@@ -14,7 +14,7 @@ import {
 const base=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-memory-v6-"));
 try{
   process.chdir(root);
-  assert.equal(coreStatus().version,8);
+  assert.equal(coreStatus().version,10);
   const x=addKnowledge({content:"«Проект Заря» использует «Модуль Лира». Система тестируется.",sector:0,source:"note"});
   const y=addKnowledge({content:"«Модуль Лира» находится в «Лаборатория Феникс». Проверка прошла.",sector:1,source:"note"});
   const z=addKnowledge({content:"«Машина Омега» использует «Проект Заря». Прототип работает.",sector:2,source:"note"});
