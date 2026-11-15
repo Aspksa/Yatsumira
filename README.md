@@ -328,3 +328,37 @@ Version 6 migrates the existing portable SQLite database in place. All changes a
 **Important limitations:** neuro-symbolic semantic interpretation, reliable causal analysis, validated counterfactual simulation, real GNN training, automatic ontology discovery and hallucination elimination have not been achieved. User-selected roadmap items have conservative implementation foundations or reuse previously implemented components. New hypotheses, reflections and graph link suggestions are never promoted to verified facts without explicit review. No background cloud calls or additional local dependencies were introduced.
 
 CORE v6 tests (`scripts/test-memory-v6.mjs`) run on Windows and Linux CI alongside schema migration and the complete older CORE test suite.
+
+## CORE v7 — selected universal graph and experience memory improvements (backend only)
+
+All changes remain in server modules, SQLite and tests. The existing UI, NEXUS canvas, chat, USB storage, Cloud.ru setup and source memory records are preserved.
+
+### Selected features and realistic scope
+
+- **3 — Thought Graph:** inspectable research-step nodes (question, hypothesis, evidence, inference, conclusion) with explicit source-memory IDs and acyclic relationships. This is an external *reasoning trace*, not a hidden chain of thought or proof of correctness.
+- **14 — Hierarchical Graph Clustering:** bounded deterministic weighted label-propagation communities, cross-community bridges and membership lists. It is not Louvain clustering or an LLM-created hierarchy.
+- **15–16 — Graph Alignment and Entity Resolution:** heuristic alignment proposals and explicit source-backed candidate alignments. An alias/merge is not automatically trusted; approval must contain evidence, and original nodes remain unchanged.
+- **17 — Temporal Graph:** as-of snapshots that respect source validity intervals and retracted memories.
+- **18 — Graph Contradiction Analysis:** ambiguous concurrent property values reported as *potential* conflicts; multi-valued properties are not assumed exclusive.
+- **19 — Path Importance Ranking:** bounded weighted paths, temporal validity, source-memory references and explicit review status. Candidate relationships never become verified automatically.
+- **20 — Graph Integrity Repair:** read-only integrity and provenance inspection, plus a safe repair plan. No destructive auto-repair is performed without a validated backup.
+- **21 — Autobiographical Memory:** source-linked history of actual task outcomes and recorded decisions, excluding retracted sources.
+- **22 — Procedural Memory v2:** bounded conversion of completed tasks with real recorded outcomes into unverified procedure candidates. Runs in existing periodic local maintenance; idempotent on repeated runs.
+- **23 — Semantic Consolidation:** inspectable source-preserving extractive consolidations across 2–12 memories; no invented synthetic facts.
+- **27 — Compression v2:** compact extractive representations preserve source IDs and leave original texts untouched. This does not delete or physically shrink the original database.
+- **28 — Association Strengthening:** explicitly requested audited link weight adjustments; arbitrary usage does not silently make an unverified connection factual.
+
+### Local-only commands
+
+    node scripts/memory-v7.mjs clusters
+    node scripts/memory-v7.mjs temporal 2026-11-16
+    node scripts/memory-v7.mjs contradictions
+    node scripts/memory-v7.mjs paths "Платформа Звезда" "Лаборатория Север"
+    node scripts/memory-v7.mjs repair-check
+    node scripts/memory-v7.mjs alignment-candidates
+    node scripts/memory-v7.mjs reasoning SESSION_ID
+    node scripts/memory-v7.mjs experience
+    node scripts/memory-v7.mjs procedures
+    node scripts/memory-v7.mjs compress MEMORY_ID_1 MEMORY_ID_2
+
+Source-backed alignments, evidence steps and association changes require manual CLI arguments. The modules do not call Cloud.ru or create AI interpretations automatically. CI validates CORE v7 with `scripts/test-memory-v7.mjs` on Windows/Linux alongside older migration and browser tests.
