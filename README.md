@@ -218,3 +218,32 @@ These mechanisms do not imply verified semantic understanding or independent dec
 ### Reviewed contract facts and conflicts (backend-only)
 
 Automated contradiction checks only create **pending candidates**. They never alter a signed contract or resolve a disagreement independently. To approve a candidate, use `node scripts/memory-v3.mjs review-fact FACT_ID reviewed "Source: signed contract and date"`; to reject, use `review-fact FACT_ID rejected "Reason"`. To dismiss or resolve a reported conflict, use `node scripts/memory-v3.mjs resolve-conflict CONFLICT_ID dismissed "Reason"` or `resolved "Evidence and rationale"`. Decisions require evidence text and create audit events in SQLite. These actions do not edit the source files or overwrite prior memory.
+
+## CORE v4 — Universal Memory Graph Engine (server-only)
+
+YATSUMIRA's memory is domain-neutral: project, person, place, tool, car, document, event, idea, organization or any other type of object can be saved as a graph node. The engine does not limit the graph to contracts. It uses Node.js and the existing local SQLite database on USB. No front-end files or interfaces were modified.
+
+**Ten capabilities:** (1) entity nodes with open type/label pairs, (2) typed and provenance-backed dynamic relations, (3) optional neural embeddings plus local FTS5 and subword similarity, (4) two- and three-hop associative graph search, (5) historical validity intervals and as-of queries, (6) user-dialogue episodic memory plus explicitly dated event timeline, (7) candidate contradiction records for relations explicitly marked single-valued, (8) automatic connected-component communities, (9) bounded checkpointed consolidation and source-preserving summaries, (10) retrieval evaluations and explicit user feedback affecting local ranking.
+
+**Truth and provenance:** Every assertion references an existing, active memory ID. Auto-extracted relations and entities are candidates, not confirmed knowledge. Contradictions are flagged only when a property is explicitly declared exclusive, not when two objects happen to have different values. Graph paths include the contributing memory ID and review state. Human review of high-stakes claims is still required.
+
+**Optional semantic model:** Real embeddings are supported only when a verified endpoint is provided through the existing YATSUMIRA_MEMORY_EMBED_* environment variables. Without one, the engine uses only lexical/subword and graph recall. It does NOT create pseudo-embeddings, autonomously train a language model, or infer facts not in the supplied sources.
+
+**Background processing:** the existing local maintenance timer processes bounded graph batches approximately every ten minutes while the server is running and saves progress in `memory_jobs`. It reads memories already stored on the user's own disk. No cloud transfer is performed by the graph extraction routine. If the project is closed, no processing continues.
+
+### Headless management (no interface changes)
+
+    node scripts/memory-v4.mjs status
+    node scripts/memory-v4.mjs index 40
+    node scripts/memory-v4.mjs path "Объект А" "Объект Б"
+    node scripts/memory-v4.mjs communities
+    node scripts/memory-v4.mjs recall "связанные проекты"
+    node scripts/memory-v4.mjs neighbors "Проект Альта"
+    node scripts/memory-v4.mjs timeline
+    node scripts/memory-v4.mjs feedback MEMORY_ID useful
+    node scripts/memory-v4.mjs event MEMORY_ID 2026-11-16 milestone "Завершена работа"
+    node scripts/memory-v4.mjs relation MEMORY_ID "Система Альта" uses "База Лира"
+
+Event dates are explicit and parsed as ISO UTC. Generic relations extracted automatically use deliberately conservative quotation patterns (e.g. `«Система Альта» использует «База Лира»`). Arbitrary relations and events can be inserted through the local CLI with existing memory provenance. Domain-agnostic does not mean perfect extraction from arbitrary natural language; this is a reliable foundation for later LLM-based extraction and evaluation.
+
+Run `node scripts/test-universal-memory.mjs` to test the graph, multi-hop paths, communities, source-backed claims, temporal filtering, duplicate safety, feedback and offline recall. GitHub Actions executes it on Linux and Windows along with CORE v1–v3 tests.
