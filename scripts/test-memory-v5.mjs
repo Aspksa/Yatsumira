@@ -22,7 +22,7 @@ import {validateExtractedKnowledge,extractKnowledgeWithModel,extractInterpretati
 const original=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-core-v5-"));
 try{
   process.chdir(root);
-  assert.equal(coreStatus().version,7);
+  assert.equal(coreStatus().version,8);
   const alpha=addKnowledge({content:"«Платформа Аврора» использует «Движок Север». Это программный проект.",sector:0,source:"note"});
   const beta=addKnowledge({content:"«Движок Север» находится в «Лаборатория Титан». Разработка продукта.",sector:1,source:"note"});
   const gamma=addKnowledge({content:"«Робот Омега» использует «Платформа Аврора». Техника работает.",sector:2,source:"note"});
