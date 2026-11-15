@@ -51,3 +51,16 @@ The left Canvas now renders **eight concentric rings**, weighted sectors and det
 - Existing black chat, Cloud.ru settings and local API proxy are unchanged.
 
 Automated browser tests cover layout, node separation, density-weighted sectors, zoom, drag, keyboard selection, the chat and responsive viewport. These tests use mock Cloud.ru responses and no real credentials.
+
+## NEXUS growth and persistence
+
+New information is saved locally in `.yatsumira/knowledge.json`, which is excluded from Git and stays with your project (including on an external USB drive).
+
+- Go to **Настройки → Развитие NEXUS**, choose a category and add a note. The graph updates immediately.
+- When a Cloud.ru chat exchange succeeds, the user's message is recorded as a **non-verified conversation note** (not a verified fact); the AI answer is not automatically accepted as truth.
+- Repeated identical notes are deduplicated. Connections are created only when records share at least two meaningful words; these are **lexical links**, not semantic or legal conclusions.
+- Real records are highlighted within the decorative circular atlas, with the node card showing original text, provenance and unverified status.
+- Local knowledge persists after reloads. The remaining background markers are decorative demonstration placeholders, not real information.
+- Storage is bounded to 2,500 records. There is no semantic embedding, legal validation, document import or autonomous model training at this stage.
+
+The local endpoints are `GET /api/knowledge/graph` and `POST /api/knowledge/ingest`, protected by the same localhost and origin checks as the Cloud.ru proxy. Do not expose the development server on a network.
