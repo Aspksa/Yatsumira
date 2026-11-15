@@ -9,6 +9,7 @@ import {normalizeMemory} from "./memory-store.mjs";
 import {indexUniversalGraph} from "./universal-memory-graph.mjs";
 import {maybeRecordMemoryHealth} from "./memory-v5-health.mjs";
 import {consolidateCompletedTasks} from "./memory-v7-experience.mjs";
+import {consolidateExperienceV11} from "./memory-v11-learning.mjs";
 import {scheduleMemoryJob,runMemoryJob,recoverInterruptedJobs} from "./memory-v8-operations.mjs";
 
 const stamp=()=>new Date().toISOString();
@@ -117,6 +118,7 @@ export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
     indexUniversalGraph({batch:35});
     summarizeConversation({conversationId:"default",maxMessages:80});
     consolidateCompletedTasks({limit:10});
+    consolidateExperienceV11({limit:5});
     maybeRecordMemoryHealth();
     const day=new Date().toISOString().slice(0,10);
     scheduleMemoryJob("graph-audit",{day});
