@@ -85,3 +85,14 @@ A selected real record card shows its original text, topic group, sector, proven
 New records stored in `.yatsumira/knowledge.json` get topic group labels derived from the first two significant words. Different topics create separate clusters, including within the main radial view. This classification is intentionally simple; semantic clustering, file upload/extraction, document metadata and RAG are future integrations.
 
 The existing single-screen black chat, Cloud.ru connector, local-only server and Windows BAT remain unchanged.
+
+## Reference-matched NEXUS v2 composition
+
+The default **Кольца** view now uses a deterministic reference-style layout computed in `src/nexus-reference.ts`:
+
+- Four asymmetric, tightly packed radial fan blocks per sector, with varying lengths and widths instead of a uniform ring of dots.
+- Two concentric outer orbits with gaps, individually outlined vector pictograms and subtle colored category grouping.
+- Quiet negative space between central core, labeled data blocks and outer icon orbit.
+- Ultra-fine filaments from the inner clusters to the outer orbit, restrained halos, and separated captions.
+
+This is an original programmatic Canvas rendering inspired by the supplied screenshot, **not** a screenshot background. It maintains hover/click accuracy through shared transformed positions, live local knowledge overlays, growth, pan/zoom, FPS adaptation, and all four modes. No Cloud.ru keys, chatbot configuration, or local knowledge files are modified by the design update.
