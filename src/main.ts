@@ -11,7 +11,12 @@ const cardType = document.querySelector<HTMLElement>("#nexus-card-type");
 const cardDetails = document.querySelector<HTMLElement>("#nexus-card-details");
 const cardClose = document.querySelector<HTMLButtonElement>("#nexus-card-close");
 const nexusMetrics = document.querySelector<HTMLElement>("#nexus-metrics");
-if (!canvas || !log || !form || !input || !card || !cardTitle || !cardType || !cardDetails || !cardClose || !nexusMetrics) {
+const nodeBadge = document.querySelector<HTMLElement>("#nexus-node-badge");
+const knowledgeText = document.querySelector<HTMLTextAreaElement>("#knowledge-text");
+const knowledgeSector = document.querySelector<HTMLSelectElement>("#knowledge-sector");
+const knowledgeButton = document.querySelector<HTMLButtonElement>("#knowledge-add");
+const knowledgeStatus = document.querySelector<HTMLElement>("#knowledge-status");
+if (!canvas || !log || !form || !input || !card || !cardTitle || !cardType || !cardDetails || !cardClose || !nexusMetrics || !nodeBadge || !knowledgeText || !knowledgeSector || !knowledgeButton || !knowledgeStatus) {
   throw new Error("Yatsumira interface elements missing");
 }
 const settingsButton = document.querySelector<HTMLButtonElement>("#settings-toggle");
@@ -28,8 +33,11 @@ if (!settingsButton || !settingsPanel || !speedInput || !widthInput || !speedVal
 function selectNode(node:NexusNode):void {
   cardTitle!.textContent=node.title;
   cardType!.textContent=node.kind==="document"?"ДОКУМЕНТ":node.kind==="agent"?"АГЕНТ":"ФАКТ";
-  cardDetails!.textContent="Демонстрационный узел · уровень "+(node.ring+1)+" · важность "+node.importance+
-    ". Реальные файлы и данные RAG пока не подключены.";
+  nodeBadge!.textContent=node.actual?(node.verified?"ПОДТВЕРЖДЕНО":"НЕ ПРОВЕРЕНО"):"ДЕМО";
+  cardDetails!.textContent=node.actual
+    ? (node.content || "Нет описания")+" · источник: "+(node.source==="chat"?"диалог":"заметка")
+    : "Демонстрационный узел · уровень "+(node.ring+1)+" · важность "+node.importance+
+      ". Реальные файлы и данные RAG пока не подключены.";
   card!.hidden=false;
 }
 const nexus = new NexusView(canvas, selectNode);
@@ -39,6 +47,7 @@ let metricsUpdate = 0;
 function updateMetrics(time:number):void {
   if(time-metricsUpdate>=650) {
     nexusMetrics!.textContent="УЗЛОВ: "+nexus.stats.total+" · В КАДРЕ: "+nexus.stats.drawn+
+      " · ЗНАНИЙ: "+nexus.stats.knowledge+" · СВЯЗЕЙ: "+nexus.stats.links+
       " · FPS: "+nexus.stats.fps+" · "+nexus.stats.detail.toUpperCase();
     metricsUpdate=time;
   }
@@ -82,6 +91,40 @@ document.addEventListener("keydown",event=>{
 document.addEventListener("pointerdown",event=>{
   if(!settingsPanel!.hidden&&event.target instanceof Node&&!settingsPanel!.contains(event.target)&&!settingsButton!.contains(event.target))closeSettings();
 });
+
+
+type KnowledgeRecord = import("./nexus").KnowledgeRecord;
+type KnowledgeLink = import("./nexus").KnowledgeLink;
+type GraphResponse = { revision:number;records:KnowledgeRecord[];links:KnowledgeLink[];added?:boolean };
+async function graphRequest(path:string,init:RequestInit={}):Promise<GraphResponse> {
+  const response=await fetch("/api/knowledge/"+path,{
+    ...init,headers:{"Content-Type":"application/json",...init.headers},cache:"no-store"
+  });
+  const data=await response.json() as GraphResponse & {error?:string};
+  if(!response.ok)throw new Error(data.error || "Ошибка локального графа");
+  return data;
+}
+function applyGraph(data:GraphResponse):void {
+  nexus.setKnowledge(data.records,data.links);
+  knowledgeStatus!.textContent="Сохранено записей: "+data.records.length+" · связей: "+data.links.length;
+}
+async function refreshGraph():Promise<void> {
+  try{applyGraph(await graphRequest("graph"));}
+  catch(error){knowledgeStatus!.textContent="Ошибка загрузки знаний: "+(error instanceof Error?error.message:"неизвестная ошибка");}
+}
+knowledgeButton!.addEventListener("click",async()=>{
+  const content=knowledgeText!.value.trim();
+  if(!content)return;
+  knowledgeButton!.disabled=true;
+  try{
+    const data=await graphRequest("ingest",{method:"POST",body:JSON.stringify({content,sector:Number(knowledgeSector!.value),source:"note"})});
+    applyGraph(data);knowledgeText!.value="";
+    knowledgeStatus!.textContent=data.added?"Новая информация сохранена · всего "+data.records.length:"Такая запись уже существует";
+  }catch(error){
+    knowledgeStatus!.textContent="Ошибка: "+(error instanceof Error?error.message:"неизвестная ошибка");
+  }finally{knowledgeButton!.disabled=false;}
+});
+void refreshGraph();
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 const history: ChatMessage[] = [];
@@ -216,6 +259,13 @@ async function submitMessage():Promise<void> {
     history.splice(0,history.length,...outgoing,{role:"assistant",content:result.answer});
     if(history.length>28)history.splice(0,history.length-28);
     addMessage(result.answer,"assistant");
+    // Store an unverified dialog note rather than treating the message as confirmed truth.
+    try {
+      const graph=await graphRequest("ingest",{method:"POST",body:JSON.stringify({content:text,sector:0,source:"chat"})});
+      applyGraph(graph);
+    }catch(error){
+      knowledgeStatus!.textContent="Не удалось сохранить сообщение в NEXUS: "+(error instanceof Error?error.message:"ошибка");
+    }
   }catch(err){
     addMessage("Ошибка Cloud.ru: "+(err instanceof Error?err.message:"неизвестная ошибка"),"system");
   }finally{busy=false;submitButton.disabled=false;input!.focus();}
