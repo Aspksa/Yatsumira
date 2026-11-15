@@ -176,6 +176,31 @@ export class NexusView {
     requestAnimationFrame(t=>this.frame(t));
   }
   get nodes(): readonly NexusNode[] { return this.layout.nodes; }
+  get currentMode(): NexusMode { return this.mode; }
+  setMode(mode:NexusMode):void {
+    if(mode===this.mode)return;
+    this.previousPositions=new Map(this.layout.nodes.map(node=>[node.id,this.position(node)]));
+    this.mode=mode;
+    this.placement=placeNexus(this.layout,mode,this.links);
+    this.transitionStart=performance.now();
+    this.transitioning=!this.reducedMotion;
+    this.canvas.dataset.mode=mode;
+    this.resize();
+  }
+  private position(node:NexusNode):NexusPoint {
+    const target=this.placement.positions.get(node.id)??{x:node.x,y:node.y};
+    if(!this.transitioning)return target;
+    const progress=Math.min(1,(performance.now()-this.transitionStart)/this.transitionLength);
+    if(progress>=1){this.transitioning=false;return target;}
+    const previous=this.previousPositions.get(node.id)??{x:node.x,y:node.y};
+    const ease=1-Math.pow(1-progress,3);
+    return {x:previous.x+(target.x-previous.x)*ease,y:previous.y+(target.y-previous.y)*ease};
+  }
+  connectedTo(node:NexusNode):{node:NexusNode;strength:number}[] {
+    return this.links.flatMap(link=>link.a.id===node.id?[{node:link.b,strength:link.strength}]:
+      link.b.id===node.id?[{node:link.a,strength:link.strength}]:[]);
+  }
+
   get scale(): number { return this.zoom; }
   get targetScale(): number { return this.targetZoom; }
   resetView(): void {
@@ -202,15 +227,19 @@ export class NexusView {
         location.importance=Math.min(3,Math.max(1,record.importance));
         location.radius=location.importance===3?5:location.importance===2?3.6:3;
         location.content=record.content;location.actual=true;
+        location.group=record.group || record.title.split(" ").slice(0,2).join(" ") || "Записи";
+        location.createdAt=record.createdAt;
         location.verified=record.verified;location.source=record.source;
         mapping.set(record.id,location);
       }
     }
-    this.layout=layout;this.resize();this.realNodes=[...mapping.values()];
+    this.layout=layout;this.realNodes=[...mapping.values()];
     this.links=links.slice(-4000).flatMap(link=>{
       const a=mapping.get(link.source),b=mapping.get(link.target);
       return a&&b?[{a,b,strength:link.strength}]:[];
     });
+    this.placement=placeNexus(this.layout,this.mode,this.links);
+    this.transitioning=false;this.resize();
     if(this.selectedId&&!mapping.has(this.selectedId))this.selectedId=null;
   }
   private resize():void {
@@ -285,7 +314,8 @@ export class NexusView {
     const tolerance=7/(this.baseScale*this.zoom);
     let closest:NexusNode|null=null,dist=Infinity;
     for(const node of this.layout.nodes){
-      const dx=node.x-target.x,dy=node.y-target.y;
+      const p=this.position(node);
+      const dx=p.x-target.x,dy=p.y-target.y;
       const d=dx*dx+dy*dy;
       const radius=Math.max(node.radius+3,tolerance);
       if(d<=radius*radius && d<dist){closest=node;dist=d;}
