@@ -13,7 +13,7 @@ async function run(){
     case "repair-check":result=graphRepairPlan();break;
     case "alignment-candidates":result={candidates:alignmentCandidates()};break;
     case "alignment-propose":result=proposeAlignment({leftId:need(0,"node A"),rightId:need(1,"node B"),memoryId:need(2,"source memory")});break;
-    case "alignment-review":result=reviewAlignment(need(0,"alignment id"),{approved:need(1,"approved|rejected")==="approved",evidence:args.slice(2).join(" ")});break;
+    case "alignment-review":{const decision=need(1,"approved|rejected");if(!["approved","rejected"].includes(decision))throw Error("Invalid review decision");result=reviewAlignment(need(0,"alignment id"),{approved:decision==="approved",evidence:args.slice(2).join(" ")});break;}
     case "reasoning":result=reasoningTrace(need(0,"session id"));break;
     case "reasoning-add":result=reasoningStep({sessionId:need(0,"session"),stepKey:need(1,"step key"),kind:need(2,"kind"),content:args.slice(3).join(" ")});break;
     case "reasoning-link":result=reasoningLink(need(0,"from"),need(1,"to"),args[2]||"derived_from");break;
