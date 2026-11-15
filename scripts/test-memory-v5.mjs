@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {extractionConfigured,requestStructuredExtraction,extractMemoryUsingProvider} from "../server/memory-v5-provider.mjs";
 import {inspectMemoryV5,assertMemoryHealthy,maybeRecordMemoryHealth} from "../server/memory-v5-health.mjs";
+import {recordAnswerAudit} from "../server/memory-v5-quality.mjs";
 
 import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
@@ -133,6 +134,10 @@ try{
       if(value===undefined)delete process.env[env];else process.env[env]=value;
     }
   }
+  const report=recordAnswerAudit("Что известно о платформе?","Платформа Аврора использует Движок Север",evidence);
+  assert.equal(report.supportedByIndependentVerification,false);
+  assert.ok(report.retrieved>0);
+  assert.ok(withCoreDatabase(db=>db.prepare("SELECT COUNT(*) AS n FROM memory_quality_runs WHERE kind='answer-evidence'").get().n)>=1);
   const health=inspectMemoryV5();
   assert.equal(health.ok,true,JSON.stringify(health.errors));
   assert.ok(health.structures.hyperedges>=1);
