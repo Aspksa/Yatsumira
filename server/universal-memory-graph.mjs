@@ -36,7 +36,7 @@ function ensureNode(db,label,type){
 function addClaim(db,claim){
   const memory=db.prepare("SELECT id,state,valid_from FROM memory_entries WHERE id=?").get(claim.memoryId);
   if(!memory||memory.state!=="active")throw Object.assign(new Error("Active source memory required"),{status:404});
-  if(confidential.test(String(claim.subject))+String(claim.object))throw Object.assign(new Error("Unsafe graph content"),{status:400});
+  if(confidential.test(String(claim.subject)+" "+String(claim.object)))throw Object.assign(new Error("Unsafe graph content"),{status:400});
   const from=ensureDate(claim.validFrom||memory.valid_from);
   const until=claim.validTo?ensureDate(claim.validTo):null;
   if(until&&until<=from)throw Object.assign(new Error("Invalid graph validity interval"),{status:400});
@@ -82,7 +82,7 @@ export function extractGenericEntities(text){
   const patterns=[
     ["quoted",/[«“"]([^»”"]{3,90})[»”"]/gu],
     ["tag",/(?:^|\s)#([\p{L}\p{N}_-]{3,60})/gu],
-    ["proper_name",/\b([A-ZА-ЯЁ][a-zа-яё]{2,}(?:\s+[A-ZА-ЯЁ][a-zа-яё]{2,}){0,2})/gu],
+    ["proper_name",/(?:^|[^\p{L}])([A-ZА-ЯЁ][a-zа-яё]{2,}(?:\s+[A-ZА-ЯЁ][a-zа-яё]{2,}){0,2})/gu],
     ["identifier",/\b([A-Z]{2,}-[0-9]{2,})\b/gu]
   ];
   for(const [type,re] of patterns)for(const match of input.matchAll(re)){
