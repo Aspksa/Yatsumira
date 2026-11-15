@@ -135,7 +135,21 @@ export function drawNexusGlyph(ctx:CanvasRenderingContext2D,x:number,y:number,r:
   ctx.restore();
 }
 export function drawNexusGroupShapes(ctx:CanvasRenderingContext2D,mode:"rings"|"circle"|"hex"|"force",groups:readonly {x:number;y:number;radius:number;sector:number;label:string;count:number}[],colors:readonly string[],zoom:number):void {
-  if(mode==="rings")return;
+  if(mode==="rings"){
+    if(zoom<1.08)return;
+    ctx.save();
+    ctx.textAlign="center";ctx.textBaseline="middle";
+    for(const group of groups){
+      const color=colors[group.sector]||"#69b9b2";
+      ctx.strokeStyle=color;ctx.globalAlpha=.25;ctx.lineWidth=.8;
+      ctx.beginPath();ctx.arc(group.x,group.y,Math.max(10,group.radius),0,PI2);ctx.stroke();
+      ctx.fillStyle=color;ctx.globalAlpha=.88;ctx.font="8px Consolas, monospace";
+      ctx.fillText(group.label.slice(0,25),group.x,group.y-group.radius-10,115);
+      if(zoom>1.85){ctx.font="7px Consolas, monospace";ctx.globalAlpha=.6;ctx.fillText(group.count+" записей",group.x,group.y+group.radius+8,90);}
+    }
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.lineWidth=.8;ctx.textAlign="center";ctx.textBaseline="middle";
   for(const group of groups){
