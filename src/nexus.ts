@@ -421,7 +421,7 @@ export class NexusView {
       const hovered=node.id===this.hovered?.id;
       const pulse=this.reducedMotion||this.quality<.9?0:Math.sin(this.animationTime*1.5+node.ring+node.sector)*.15;
       const outer=this.mode==="rings"&&node.ring>=6;
-      const r=(outer?Math.max(4,node.radius+1):node.actual?Math.max(2.7,node.radius):Math.min(2.1,node.radius))+(selected?2:hovered?1.3:0);
+      const r=(outer?Math.max(5.2,node.radius+1.6):node.actual?Math.max(2.7,node.radius):this.mode==="rings"?Math.min(1.9,node.radius):Math.min(2.1,node.radius))+(selected?2:hovered?1.3:0);
       ctx.globalAlpha=node.actual?1:Math.max(outer?.56:.34,outer?.65+pulse*.3:.43+pulse);
       ctx.strokeStyle=color;ctx.fillStyle=color;
       if((selected||hovered||node.actual) && this.quality>.65){
@@ -446,7 +446,11 @@ export class NexusView {
       if(outer){
         // Open-circle icons around the perimeter, as in the reference atlas.
         ctx.beginPath();ctx.arc(nx,ny,r,0,TWO_PI);
-        ctx.lineWidth=outer?1.15:.8;ctx.stroke();
+        ctx.lineWidth=1.25;ctx.stroke();
+        ctx.globalAlpha*=.55;
+        ctx.beginPath();ctx.arc(nx,ny,r*.74,0,TWO_PI);
+        ctx.lineWidth=.75;ctx.stroke();
+        ctx.globalAlpha=node.actual?1:Math.max(.56,.65+pulse*.3);
         ctx.shadowBlur=0;
         ctx.beginPath();ctx.arc(nx,ny,Math.max(1,r*.35),0,TWO_PI);
         if(this.quality>.4&&this.zoom>.72)drawNexusGlyph(ctx,nx,ny,r,node.kind==="agent"?2:node.kind==="document"?1:node.sector,color);
