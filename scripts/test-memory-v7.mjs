@@ -5,7 +5,7 @@ import {join} from "node:path";
 import {addKnowledge,coreStatus,withCoreDatabase} from "../server/core-db.mjs";
 import {indexUniversalGraph,assertGraphRelation} from "../server/universal-memory-graph.mjs";
 import {createMemoryTask,updateMemoryTask} from "../server/memory-v5-records.mjs";
-import {reasoningStep,reasoningLink,reasoningTrace,alignmentCandidates,proposeAlignment,reviewAlignment,procedureFromTask,consolidateSources,reinforceLink} from "../server/memory-v7-experience.mjs";
+import {reasoningStep,reasoningLink,reasoningTrace,alignmentCandidates,proposeAlignment,reviewAlignment,procedureFromTask,consolidateSources,reinforceLink,experienceTimeline,consolidateCompletedTasks} from "../server/memory-v7-experience.mjs";
 import {temporalGraph,hierarchicalClusters,temporalContradictions,rankGraphPaths,graphRepairPlan} from "../server/memory-v7-graph.mjs";
 const previous=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-core-v7-"));
 try{
@@ -44,6 +44,12 @@ try{
   const procedure=procedureFromTask(task.id);
   assert.equal(procedure.stored,true);
   assert.equal(procedureFromTask(task.id).stored,false);
+  const secondTask=createMemoryTask({memoryId:mb,title:"Проверить вторую систему",checkpoint:"Диагностика"});
+  updateMemoryTask(secondTask.id,{status:"done",outcome:"Работа завершена"});
+  assert.ok(experienceTimeline().some(row=>row.id===secondTask.id&&row.kind==="task"));
+  assert.equal(consolidateCompletedTasks({limit:10}).stored,1);
+  assert.equal(consolidateCompletedTasks({limit:10}).stored,0);
+
   const summary=consolidateSources([ma,mb,mc],{kind:"compressed"});
   assert.equal(summary.originalsPreserved,true);
   assert.equal(summary.sourceCount,3);
