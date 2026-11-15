@@ -464,3 +464,36 @@ This is an additive, backend-only SQLite migration from CORE v10 to v11. No UI, 
     node scripts/memory-v11.mjs verify-understanding "неизвестная тема"
 
 **Implementation limits:** neural semantic equivalence, guaranteed factuality, automatic preference recognition, robust entity disambiguation and reliable causality reasoning are **not** automatically achieved. The new long-term system deliberately separates recorded facts from candidate insights. CORE v11 tests run in `scripts/test-memory-v11.mjs` on Linux and Windows alongside previous suites; browser UI is unchanged.
+
+## CORE v12 — supervised cognitive memory foundations (43 selected directions)
+
+This update is **backend-only** and migrates existing SQLite to schema 12 without dropping existing original memories, graph edges, conversations or source IDs. It does not alter the visual interface, use Docker/Ollama or train model weights. All inferred patterns are candidate records, not confirmed knowledge.
+
+Selected roadmap numbers: **1–5, 7–8, 11–15, 18, 21–50**.
+
+### Actual implementations and reused foundations
+
+- **1–5**: new `memory_v12_lessons` and evidence linking, bounded idempotent experience consolidation from completed/cancelled tasks, reflection/strategy/analogy candidates, plus existing source-linked CORE v11 consolidation. Outcomes from a single source do not count as multiple independent sources.
+- **7–8, 11–15, 18**: existing gap diagnostic and question planning; hypotheses and alternatives stay candidates; the v12 graph module produces structural analogy proposals. Recursive reasoning, calibrated uncertainty and causal simulations are **not** autonomous or trained — v6 hypothesis trace and v7 reasoning steps provide basic bounded groundwork.
+- **21–30**: existing CORE v10 two-hop link discovery and ontology proposals, v7 communities/temporal relationships, v8 motifs and bridges, v12 aggregated review diagnostics, source-linked relation confidence and anomaly tracing. Structural similarity is not neural graph learning; causes are never inferred as verified solely from chronology.
+- **31–40**: completed/cancelled task episodes and CORE v11 procedures, decisions, goals and source-linked preference memory; new v12 lessons hold reviewable success/failure/strategy/correction proposals. Predictions are ranking heuristics, not calibrated success probabilities or autonomous transferable skills.
+- **41–47**: `adaptiveRecall` performs bounded lexical search and optional graph fusion, with explicit feedback-based reranking; retrieval profile experiments require labeled QA examples before approval. Provider-backed semantic reranking remains optional in the existing `memory-provider.mjs`.
+- **48–50**: existing CORE v8 Recall@20/MRR regression comparison and new auditable retrieval-profile approvals, local status and daily metrics. Profile approval does **not** silently change production weights; deployment still requires explicit integration and further validation.
+
+### Background safety and operation
+
+While the local server is running, the existing SQLite job scheduler queues one daily `v12-experience`, `v12-graph-research` and `v12-learning-report` task for each date, in addition to earlier maintenance. The queue persists after shutdown and bounded tasks are checkpointed for restart. It does **not** automatically alter code, delete source memories, approve candidate facts, contact Cloud.ru for autonomous learning or fine-tune a neural model.
+
+Useful local commands:
+
+    node scripts/memory-v12.mjs status
+    node scripts/memory-v12.mjs learn
+    node scripts/memory-v12.mjs lessons
+    node scripts/memory-v12.mjs graph
+    node scripts/memory-v12.mjs recall "Как связан проект и документ?"
+    node scripts/memory-v12.mjs gaps "Какие сведения отсутствуют?"
+    node scripts/memory-v12.mjs anomalies
+    node scripts/memory-v12.mjs priority MEMORY_ID
+    node scripts/memory-v12.mjs feedback MEMORY_ID useful "запрос" "Проверено вручную"
+
+To ensure accuracy, verify new lesson candidates against their original sources before approval. Neural semantic equivalence, verified causal conclusions, reliable success prediction, true calibration, learning model weights and full skill transfer require further independent components and evaluation. Windows/Linux CI includes `scripts/test-memory-v12.mjs` alongside all previous versions, server checks and browser regression.
