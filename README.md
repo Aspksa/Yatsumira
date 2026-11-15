@@ -175,3 +175,42 @@ node scripts/memory.mjs retract RECORD_ID
 Replacing a record creates a new version, marks the previous version as superseded and preserves its provenance. Retraction disables a record in active recall but **does not securely erase its original text** from the database or backups. For confidential data removal, handle both the source SQLite file and backups separately.
 
 Backend routes (under existing localhost/origin restrictions) are \`GET /api/core/memory/status\` and \`GET /api/core/memory/search?q=...\`. CORE v2 migration runs automatically and transactionally on the first access; backed-up v1 SQLite and the legacy \`knowledge.json\` are not destroyed. Tests cover migration, deduplication, provenance, dialogue continuity, memory recall into Cloud.ru, source safety, temporal revisions, FTS5 integrity, and Windows/Linux portability.
+
+## CORE v3 — all ten back-end memory extensions (no visual changes)
+
+SQLite schema v3 extends the same portable local database. No HTML/CSS/Canvas or chat interface has been modified.
+
+1. **Real embeddings**: memory_vectors stores normalized provider-produced vectors with model names and dimensional validation; no invented vectors. External embeddings must be configured explicitly.
+2. **Hybrid ranking**: SQLite FTS5 + subword similarity + cosine search + reciprocal-rank fusion + optional provider reranker. Fallback is local text retrieval.
+3. **Extraction**: cautious regex candidates for payment terms, sums and delivery dates, plus contract, organization and employee entities with source IDs; not validated legal conclusions.
+4. **Contradictions**: conflicting values for the same identified contract field create pending-review records, never silently overwrite verified conditions.
+5. **Logical memory tiers**: working, episodic, semantic, procedural and archive; heuristic classification over one SQLite store.
+6. **Knowledge graph**: existing memory links, contract/entity index, graph-neighbor queries and source provenance.
+7. **Time and versions**: valid-from / valid-to, past versions, replacement / retraction closing associated fact validity.
+8. **Background consolidation**: bounded batches approx. every 10 minutes while local server runs, checkpointed in SQLite; provenance-preserving extractive summaries of user turns only.
+9. **Memory auditing**: pending fact/conflict review, SQLite integrity, source labeling and retrieval quality tests.
+10. **Quality monitoring**: Recall@20 and MRR over explicitly provided expected memory IDs, stored results; no autonomous model retraining or self-modification.
+
+### Optional neural provider, disabled unless explicitly configured
+
+Use documented compatible endpoints, not guesses about Cloud.ru API:
+
+- YATSUMIRA_MEMORY_EMBED_URL, YATSUMIRA_MEMORY_EMBED_KEY, YATSUMIRA_MEMORY_EMBED_MODEL
+- YATSUMIRA_MEMORY_RERANK_URL, YATSUMIRA_MEMORY_RERANK_KEY, YATSUMIRA_MEMORY_RERANK_MODEL
+
+The embedding adapter sends {model,input} to the explicitly configured HTTPS endpoint (localhost HTTP allowed). Reranker sends {model,query,documents}. Provider availability and response format are not guaranteed. Cloud.ru Foundation Models public OpenAPI documents /models and /chat/completions, not a confirmed universal embeddings endpoint. Do not store credentials in git. Configuring a provider may transmit confidential enterprise contract excerpts to that provider; without configuration, no embedding/rerank network calls occur.
+
+### Backend-only maintenance commands
+
+    node scripts/memory-v3.mjs status
+    node scripts/memory-v3.mjs consolidate 40
+    node scripts/memory-v3.mjs facts
+    node scripts/memory-v3.mjs conflicts
+    node scripts/memory-v3.mjs summary
+    node scripts/memory-v3.mjs recall "условия договора поставки"
+    node scripts/memory-v3.mjs embed 12
+    node scripts/memory-v3.mjs evaluate MEMORY_ID "срок оплаты"
+
+The embed command requires a real configured provider. Background maintenance never contacts an embedding provider. Full snapshots are still available via scripts/core-maintenance.mjs. New tests (scripts/test-memory-v3.mjs) use actual SQLite data and mocked network contracts on Windows/Linux.
+
+These mechanisms do not imply verified semantic understanding or independent decisions about Russian contract law. They provide traceable candidates and retrieval for later professional review.
