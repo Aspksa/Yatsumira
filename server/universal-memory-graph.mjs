@@ -104,6 +104,39 @@ export function extractGenericRelations(text){
   }
   return result;
 }
+function addEvent(db,{memoryId,eventType="event",title,occurredAt,confidence=.55}){
+  const memory=db.prepare("SELECT id,state FROM memory_entries WHERE id=?").get(memoryId);
+  if(!memory||memory.state!=="active")throw Object.assign(new Error("Active event source required"),{status:404});
+  const kind=safeLabel(eventType,45).toLowerCase(),name=safeLabel(title,240),date=ensureDate(occurredAt);
+  if(confidential.test(name))throw Object.assign(new Error("Unsafe event content"),{status:400});
+  const result=db.prepare("INSERT OR IGNORE INTO graph_events(id,memory_id,event_type,title,occurred_at,confidence,created_at) VALUES(?,?,?,?,?,?,?)")
+    .run(randomUUID(),memoryId,kind,name,date,clamp(confidence),timestamp());
+  return {stored:result.changes===1};
+}
+export function recordMemoryEvent(input){
+  return withCoreDatabase(db=>{
+    db.exec("BEGIN IMMEDIATE");
+    try{const result=addEvent(db,input);db.exec("COMMIT");return result;}
+    catch(error){db.exec("ROLLBACK");throw error;}
+  });
+}
+export function extractDatedEvents(text){
+  const found=[],input=String(text||"").slice(0,4000);
+  // Parse only dates directly stated in the source; do not infer 'yesterday' or invented events.
+  const re=/(?:^|\n)(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?\s*[:—-]\s*([^\n]{5,160})/gu;
+  for(const m of input.matchAll(re)){
+    const occurredAt=m[1]+"T"+(m[2]||"00:00")+":00.000Z";
+    if(Number.isFinite(Date.parse(occurredAt)))found.push({occurredAt,title:m[3].trim(),eventType:"source-stated",confidence:.7});
+    if(found.length>=12)break;
+  }
+  return found;
+}
+export function memoryTimeline({asOf,limit=50}={}){
+  const until=ensureDate(asOf);
+  return withCoreDatabase(db=>db.prepare("SELECT e.id,e.event_type AS eventType,e.title,e.occurred_at AS occurredAt,e.confidence,m.source_kind AS sourceKind,m.source_id AS sourceId FROM graph_events e JOIN memory_entries m ON m.id=e.memory_id WHERE e.occurred_at<=? AND (m.state='active' OR m.valid_to>?) ORDER BY e.occurred_at DESC,e.id LIMIT ?")
+    .all(until,until,Math.max(1,Math.min(200,Number(limit)||50))));
+}
+
 /** Incremental ingestion with source id and idempotency guarantees. */
 export function indexUniversalGraph({batch=40}={}){
   return withCoreDatabase(db=>{
@@ -114,13 +147,16 @@ export function indexUniversalGraph({batch=40}={}){
       let rows=db.prepare("SELECT rowid AS position,id,content FROM memory_entries WHERE rowid>? AND state='active' ORDER BY rowid LIMIT ?").all(cursor,Math.min(100,Math.max(1,batch)));
       let wrapped=false;
       if(!rows.length&&cursor>0){rows=db.prepare("SELECT rowid AS position,id,content FROM memory_entries WHERE state='active' ORDER BY rowid LIMIT ?").all(Math.min(100,Math.max(1,batch)));wrapped=true;}
-      let nodes=0,claims=0;
+      let nodes=0,claims=0,events=0;
       for(const row of rows){
         if(confidential.test(row.content))continue;
         for(const item of extractGenericEntities(row.content)){
           const old=db.prepare("SELECT id FROM graph_nodes WHERE node_type=? AND normalized_label=?").get(item.type,normalizeMemory(item.label));
           ensureNode(db,item.label,item.type);
           if(!old)nodes++;
+        }
+        for(const item of extractDatedEvents(row.content)){
+          if(addEvent(db,{...item,memoryId:row.id}).stored)events++;
         }
         for(const item of extractGenericRelations(row.content)){
           const r=addClaim(db,{...item,memoryId:row.id});
@@ -129,9 +165,9 @@ export function indexUniversalGraph({batch=40}={}){
       }
       const next=rows.at(-1)?.position??(wrapped?0:cursor),date=timestamp();
       db.prepare("INSERT INTO memory_jobs(name,cursor,last_run,last_result,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET cursor=excluded.cursor,last_run=excluded.last_run,last_result=excluded.last_result,updated_at=excluded.updated_at")
-        .run(job,String(next),date,JSON.stringify({processed:rows.length,nodes,claims,wrapped}),date);
+        .run(job,String(next),date,JSON.stringify({processed:rows.length,nodes,claims,events,wrapped}),date);
       db.exec("COMMIT");
-      return {processed:rows.length,nodes,claims,wrapped};
+      return {processed:rows.length,nodes,claims,events,wrapped};
     }catch(error){db.exec("ROLLBACK");throw error;}
   });
 }
@@ -218,7 +254,8 @@ export function graphOverview(){
     nodes:db.prepare("SELECT COUNT(*) AS n FROM graph_nodes").get().n,
     assertions:db.prepare("SELECT COUNT(*) AS n FROM graph_assertions").get().n,
     pendingConflicts:db.prepare("SELECT COUNT(*) AS n FROM graph_conflicts WHERE review_state='pending'").get().n,
-    feedback:db.prepare("SELECT COUNT(*) AS n FROM memory_feedback").get().n
+    feedback:db.prepare("SELECT COUNT(*) AS n FROM memory_feedback").get().n,
+    events:db.prepare("SELECT COUNT(*) AS n FROM graph_events").get().n
   }));
 }
 export function recordMemoryFeedback(memoryId,kind){
