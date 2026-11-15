@@ -78,3 +78,22 @@ export function researchEntities(text){
   }
   return found.slice(0,20);
 }
+
+/** Logical multi-tier memory view without copying sensitive content across tables. */
+export function memoryLayers(){
+  return withCoreDatabase(db=>{
+    const rows=db.prepare("SELECT source_kind,importance,state,content FROM memory_entries").all();
+    const counts={working:0,episodic:0,semantic:0,procedural:0,archive:0};
+    for(const row of rows){
+      if(row.state!=="active"){counts.archive++;continue;}
+      if(row.source_kind==="dialogue"){counts.episodic++;continue;}
+      if(/\b(?:порядок|процедур|инструкц|алгоритм|регламент|правило|шаг)\w*/iu.test(row.content)){
+        counts.procedural++;continue;
+      }
+      if(row.importance>=2){counts.semantic++;continue;}
+      counts.working++;
+    }
+    const summaries=db.prepare("SELECT COUNT(*) AS n FROM memory_summaries").get().n;
+    return {counts,conversationSummaries:summaries,policy:"classifications are heuristic, not verified facts"};
+  });
+}
