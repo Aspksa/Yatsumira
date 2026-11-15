@@ -39,7 +39,17 @@
       <section class="visual-panel" aria-label="Визуализация системы">
         <div class="visual-area">
           <canvas id="app" aria-label="Интерактивная круговая визуализация узлов Yatsumira"></canvas>
-          <div class="orbit-caption">SYSTEM NEXUS <span>·</span> v0.1 · КОЛЕСО МЫШИ — МАСШТАБ</div>
+          <div class="orbit-caption">NEXUS · 8 УРОВНЕЙ · КОЛЕСО — МАСШТАБ · ЗАЖМИТЕ И ПЕРЕТАЩИТЕ</div>
+          <div class="nexus-telemetry" id="nexus-metrics" aria-live="off">ЗАГРУЗКА УЗЛОВ...</div>
+          <section class="nexus-card" id="nexus-card" aria-label="Карточка узла NEXUS" hidden>
+            <div class="nexus-card-top">
+              <span id="nexus-card-type">ФАКТ</span>
+              <span class="nexus-demo-tag">ДЕМО</span>
+              <button type="button" id="nexus-card-close" aria-label="Закрыть карточку">×</button>
+            </div>
+            <h2 id="nexus-card-title">Узел</h2>
+            <p id="nexus-card-details"></p>
+          </section>
         </div>
         <footer class="bottom-bar"><span>◈ &nbsp; 08 TAILS · 08 DOMAINS</span><span>CANVAS ENGINE <strong>ACTIVE</strong></span></footer>
       </section>
