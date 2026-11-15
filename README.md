@@ -396,3 +396,37 @@ Write operations (e.g. `fuse`, `outcome`, `graph-snapshot`) are explicit CLI com
 Limitations: semantic deduplication, graph causal discovery, neural graph alignment, reliable identity decisions, learned memory confidence, actual cross-domain transfer and calibrated factuality require additional model-backed implementation and evidence. The system intentionally keeps unreviewed patterns as candidates. `memory-v8-operations.mjs` has **no destructive database migration or automatic data repair**. A passing CI suite shows tested behavior, not an independent guarantee that complex conclusions are true.
 
 CI now runs `scripts/test-memory-v8.mjs` on Linux and Windows in addition to all earlier versions and the browser regression suite.
+
+## CORE v10 — selected universal graph upgrades (no UI changes)
+
+CORE v10 upgrades SQLite additively from v8, preserving original node IDs, claims, documents, conversations and memory sources. No Docker, Ollama, new page elements or automatic Cloud.ru calls.
+
+Selected items:
+
+- **2 — Dynamic Graph Schema:** propose new ontology types with a real source-memory ID. Only explicitly reviewed type proposals update the ontology; automatic classification is heuristic and not trusted by default.
+- **3 — Entity Identity Memory:** reviewable, source-backed mapping of distinct node IDs to canonical entities. Resolving an identity is a separate operation from storing original nodes.
+- **4 — Graph Merge Engine:** reviewed merge marks an identity mapping as active; it never deletes original nodes or overwrites source assertions.
+- **5 — Graph Split Engine:** split revokes a merged identity mapping and restores independent resolution, preserving source evidence and audit history.
+- **9 — Provenance Tracking:** each original graph claim links to source memory, validity interval, review state and original source kind/id.
+- **10 — Graph Consistency Rules:** checks impossible validity ranges, missing sources and suspicious self-links. Semantic truth still requires independent review.
+- **24 — Hidden Link Discovery:** bounded two-hop candidate discovery (with provenance from the intermediate path); no direct assertion is automatically created.
+- **30 — Knowledge Bridge Detection:** identify nodes with neighbors from different known types, with original supporting memory IDs; structural bridges are not validated cross-domain causal knowledge.
+- **31 — Temporal Knowledge Graph:** existing time-valid graph claims plus explicitly dated events and source-linked event-to-node roles.
+- **32 — Event Causality Graph:** proposed causal links between source-backed events, checked for chronological order and stored as unverified candidates.
+- **33 — Experience Graph:** explicit task-to-event relationships retain original task and event IDs.
+- **41 — Background Link Discovery:** daily, bounded, idempotent work in the existing SQLite queue, only when the local server runs; results remain unverified candidate links.
+- **44 — Graph Anomaly Monitor:** daily diagnostics of self-links, stale assertions and isolated nodes; does not automatically delete or repair data.
+
+Local commands:
+
+    node scripts/memory-v10.mjs stats
+    node scripts/memory-v10.mjs discover
+    node scripts/memory-v10.mjs bridges
+    node scripts/memory-v10.mjs anomalies
+    node scripts/memory-v10.mjs rules
+    node scripts/memory-v10.mjs events
+    node scripts/memory-v10.mjs identity-candidates
+    node scripts/memory-v10.mjs identity-resolve NODE_ID
+    node scripts/memory-v10.mjs provenance ASSERTION_ID
+
+Explicit review operations (`types-review`, `identity-merge`, `identity-split`) require evidence. No node is merged or split by the background scheduler. All automatic discoveries, cause proposals and anomalies remain review-only data. CI runs `scripts/test-memory-v10.mjs` on Linux and Windows alongside existing CORE and browser tests.
