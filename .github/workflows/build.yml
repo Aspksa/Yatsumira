@@ -20,6 +20,14 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+      - name: Upload reference comparison screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yatsumira-nexus-visual-snapshots
+          path: artifacts/visual/*.png
+          if-no-files-found: warn
+          retention-days: 14
 
   windows-clean-install:
     runs-on: windows-latest
