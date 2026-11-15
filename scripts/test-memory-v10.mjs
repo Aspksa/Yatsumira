@@ -12,7 +12,7 @@ import {scheduleMemoryJob,runMemoryJob,recoverInterruptedJobs} from "../server/m
 const cwd=process.cwd(),folder=mkdtempSync(join(tmpdir(),"yatsumira-v10-"));
 try{
   process.chdir(folder);
-  assert.equal(coreStatus().version,10);
+  assert.equal(coreStatus().version,11);
   const a=addKnowledge({content:"«Сервис Север» использует «Модуль Луч».",sector:0,source:"note"});
   const b=addKnowledge({content:"«Сервис Северный» связан с «Модуль Луч».",sector:1,source:"note"});
   const c=addKnowledge({content:"«Модуль Луч» используется в «Лаборатория Маяк».",sector:2,source:"note"});
