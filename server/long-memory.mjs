@@ -53,8 +53,8 @@ export function recallMemory(query,{limit=8}={}){
   if(input.length<3)return [];
   return withCoreDatabase(db=>ranked(db,input,limit));
 }
-export function makeMemoryContext(query,{maxChars=2400,limit=7}={}){
-  const records=recallMemory(query,{limit});
+export function makeMemoryContext(query,{maxChars=2400,limit=7,records=null}={}){
+  records=records??recallMemory(query,{limit});
   let remaining=clamp(maxChars,0,5000);
   const chosen=[];
   for(const item of records){
