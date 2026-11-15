@@ -51,8 +51,8 @@ export function buildNexusLayout(counts: readonly number[] = CATALOG.map(item =>
     const bins: { count: number; radius: number }[] = RINGS.map((radius, i) => ({
       count: 0, radius
     }));
-    // Guarantee at least 13 world units between nodes, including outer icon diameter.
-    const capacities = RINGS.map(r => Math.max(0, Math.floor(r * span / 14)));
+    // Guarantee at least 11.5 world units between nodes, including outer icon diameter.
+    const capacities = RINGS.map(r => Math.max(0, Math.floor(r * span / 11.5)));
     let remaining = sector.count;
     let next = 0;
     while (remaining > 0) {
