@@ -23,7 +23,7 @@ export function drawNexusScaffold(
     ctx.beginPath();
     ctx.arc(0,0,r,0,PI2);
     ctx.strokeStyle = i === 12 ? "#486c72" : "#42616a";
-    ctx.globalAlpha = i===12 ? .26 : i >= 10 ? .12 : .075;
+    ctx.globalAlpha = i===12 ? .30 : i >= 10 ? .16 : .07;
     ctx.stroke();
   }
   ctx.globalAlpha=1;
@@ -68,6 +68,27 @@ export function drawNexusScaffold(
       const subX=Math.cos(mid)*307,subY=Math.sin(mid)*307;
       ctx.fillText(String(sector.count).padStart(3,"0")+" / NODES",subX,subY,85);
     }
+    // Fine hierarchy filaments from each fan block toward the outer orbit.
+    // Deliberately restrained: the sample uses hairline connections, not a bright spiderweb.
+    for(let cluster=0;cluster<4;cluster++){
+      const angle=sector.start+spread*(cluster+.5)/4;
+      const source=230+(cluster%3)*8;
+      const stop=rMax-20;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle)*source,Math.sin(angle)*source);
+      ctx.quadraticCurveTo(Math.cos(angle+.018)*300,Math.sin(angle+.018)*300,
+        Math.cos(angle)*stop,Math.sin(angle)*stop);
+      ctx.strokeStyle=sector.color;ctx.globalAlpha=.09;
+      ctx.lineWidth=.65;ctx.stroke();
+      if(quality>.65){
+        const endX=Math.cos(angle)*stop,endY=Math.sin(angle)*stop;
+        if(visible(endX,endY)){
+          ctx.beginPath();ctx.arc(endX,endY,1.25,0,PI2);
+          ctx.fillStyle=sector.color;ctx.globalAlpha=.43;ctx.fill();
+        }
+      }
+    }
+    ctx.globalAlpha=1;
     // Short guide arcs at the inner cluster edge.
     ctx.beginPath();
     ctx.arc(0,0,272,sector.start+Math.min(.05,spread*.1),sector.end-Math.min(.05,spread*.1));
