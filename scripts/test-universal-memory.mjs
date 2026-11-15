@@ -6,7 +6,7 @@ import {addKnowledge,coreStatus,withCoreDatabase} from "../server/core-db.mjs";
 import {hybridRecall} from "../server/memory-provider.mjs";
 import {
   extractGenericEntities,extractGenericRelations,indexUniversalGraph,assertGraphRelation,
-  graphPath,graphCommunities,graphRecall,graphClaims,graphOverview,recordMemoryFeedback
+  graphPath,graphCommunities,graphRecall,graphClaims,graphOverview,recordMemoryFeedback,recordMemoryEvent,memoryTimeline,extractDatedEvents
 } from "../server/universal-memory-graph.mjs";
 const previous=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-universal-v4-"));
 try{
@@ -17,6 +17,8 @@ try{
   const c=addKnowledge({content:"«Мастерская» зависит от «Система Альта». Работа продолжается.",source:"note",sector:2});
   const lookupMemory=knowledgeId=>withCoreDatabase(db=>db.prepare("SELECT id FROM memory_entries WHERE source_kind='knowledge' AND source_id=?").get(knowledgeId).id);
   const ma=lookupMemory(a.id),mb=lookupMemory(b.id),mc=lookupMemory(c.id);
+  assert.equal(extractDatedEvents("2026-04-21: Выпущена новая версия платформы.").length,1);
+  assert.equal(extractDatedEvents("Когда-то была новая версия").length,0);
   assert.ok(extractGenericEntities("«Платформа Заря» связана с «Мастерская»").length>=2);
   assert.equal(extractGenericRelations("«Платформа Заря» связана с «Мастерская»")[0].predicate,"related_to");
   assert.equal(extractGenericRelations("Обычные слова без доказательства отношений.").length,0);
@@ -66,6 +68,12 @@ try{
   const feedback=recordMemoryFeedback(ma,"useful");
   assert.ok(feedback.stored);
   assert.equal(graphOverview().feedback,1);
+  const evt=recordMemoryEvent({memoryId:ma,eventType:"release",title:"Обновление платформы",occurredAt:"2026-04-21"});
+  assert.equal(evt.stored,true);
+  assert.equal(recordMemoryEvent({memoryId:ma,eventType:"release",title:"Обновление платформы",occurredAt:"2026-04-21"}).stored,false);
+  assert.ok(memoryTimeline({asOf:"2026-04-22"}).some(x=>x.title==="Обновление платформы"));
+  assert.equal(memoryTimeline({asOf:"2025-04-22"}).some(x=>x.title==="Обновление платформы"),false);
+  assert.ok(graphOverview().events>=1);
   assert.throws(()=>recordMemoryFeedback(a.id,"truth"),/Invalid feedback/);
   assert.throws(()=>assertGraphRelation({memoryId:"missing",subject:"X",predicate:"likes",object:"Y"}),/source memory/i);
   const journal=withCoreDatabase(db=>db.prepare("PRAGMA integrity_check").get().integrity_check);
