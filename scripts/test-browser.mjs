@@ -87,6 +87,14 @@ try {
   assert.equal(await page.locator('.chat-panel').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
   assert.equal(await page.locator('.chat-body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
   assert.equal(await page.locator('.cloud-section').count(),1);
+  const beforeGrowth=Number(await page.locator('#app').getAttribute('data-knowledge'));
+  await page.locator('#settings-toggle').click();
+  await page.locator('#knowledge-sector').selectOption('1');
+  await page.locator('#knowledge-text').fill('Новая информация: договор поставки и граф знаний NEXUS');
+  await page.locator('#knowledge-add').click();
+  await page.getByText(/Новая информация сохранена/).waitFor();
+  await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeGrowth);
+  await page.keyboard.press('Escape');
   assert.equal(await page.locator('.shell > .topbar').count(),1);
   await page.locator('#settings-toggle').click();
   assert.equal(await page.locator('#settings-panel').isVisible(),true);
