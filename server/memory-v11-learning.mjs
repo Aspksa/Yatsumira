@@ -92,3 +92,18 @@ export function memoryLearningStatus(){
     recordedEpisodes:db.prepare("SELECT COUNT(*) AS n FROM memory_consolidations WHERE kind='episode'").get().n
   }));
 }
+
+/** Bounded and idempotent background candidate recording.
+ * Only previously recorded outcomes; no LLM, no inferred facts, no source edits.
+ */
+export function consolidateExperienceV11({limit=6}={}){
+  const candidates=[...summarizeExperience({kind:"success",limit}),...summarizeExperience({kind:"failure",limit})].slice(0,Math.max(1,Math.min(20,limit)));
+  let created=0,existing=0;
+  for(const c of candidates){
+    if(c.sourceMemoryIds.length<2)continue;
+    const description=c.topic+" | completed="+c.successes+" | cancelled="+c.failures;
+    const result=recordExperiencePattern({kind:c.kind,memoryIds:c.sourceMemoryIds,description});
+    if(result.stored)created++;else existing++;
+  }
+  return {candidates:candidates.length,created,existing,verified:false};
+}
