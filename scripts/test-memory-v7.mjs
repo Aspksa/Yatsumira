@@ -10,7 +10,7 @@ import {temporalGraph,hierarchicalClusters,temporalContradictions,rankGraphPaths
 const previous=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-core-v7-"));
 try{
   process.chdir(root);
-  assert.equal(coreStatus().version,8);
+  assert.equal(coreStatus().version,10);
   const a=addKnowledge({content:"«Платформа Звезда» использует «Движок Лира».",sector:0,source:"note"});
   const b=addKnowledge({content:"«Движок Лира» находится в «Лаборатория Север».",sector:1,source:"note"});
   const c=addKnowledge({content:"«Машина Сокол» использует «Платформа Звезда».",sector:2,source:"note"});
