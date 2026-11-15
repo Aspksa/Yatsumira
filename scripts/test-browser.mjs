@@ -24,6 +24,29 @@ try {
   await page.waitForTimeout(220);
   await page.locator('#app').screenshot({path:join(visualDir,'nexus-atlas-desktop.png')});
   await page.screenshot({path:join(visualDir,'yatsumira-desktop.png'),fullPage:true});
+  // Reproducible visual measurements for comparing with the provided reference.
+  const visualMetrics=await page.locator('#app').evaluate(canvas=>{
+    const w=canvas.width,h=canvas.height;
+    const pixels=canvas.getContext('2d').getImageData(0,0,w,h).data;
+    const centerX=w*.5,centerY=h*.55,radius=Math.min(w,h)*.46;
+    const breaks=[0,.15,.36,.65,.85,1.08];
+    const total=[0,0,0,0,0],colored=[0,0,0,0,0];
+    for(let y=0;y<h;y+=4)for(let x=0;x<w;x+=4){
+      const distance=Math.hypot(x-centerX,y-centerY)/radius;
+      const band=breaks.findIndex((value,i)=>i<breaks.length-1&&distance>=value&&distance<breaks[i+1]);
+      if(band<0)continue;
+      total[band]++;
+      const p=(y*w+x)*4;
+      const max=Math.max(pixels[p],pixels[p+1],pixels[p+2]);
+      const min=Math.min(pixels[p],pixels[p+1],pixels[p+2]);
+      if(max>35&&max-min>10)colored[band]++;
+    }
+    return {center:[.5,.55],radiusFraction:.46,
+      bands:total.map((n,i)=>Number((colored[i]/Math.max(1,n)).toFixed(4)))};
+  });
+  console.log('[YATSUMIRA][VISUAL] '+JSON.stringify(visualMetrics));
+  assert.ok(visualMetrics.bands.some(value=>value>.01),'Atlas must render visible colored detail');
+
   const result=await page.evaluate(()=>{
     const canvas=document.querySelector('#app');
     return {
