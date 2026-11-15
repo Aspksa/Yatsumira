@@ -48,7 +48,9 @@ const sql=[
 "CREATE INDEX IF NOT EXISTS idx_graph_assertions_object ON graph_assertions(object_id,predicate)",
 "CREATE TABLE IF NOT EXISTS graph_conflicts(id TEXT PRIMARY KEY,left_assertion TEXT NOT NULL REFERENCES graph_assertions(id) ON DELETE CASCADE,right_assertion TEXT NOT NULL REFERENCES graph_assertions(id) ON DELETE CASCADE,review_state TEXT NOT NULL CHECK(review_state IN ('pending','dismissed','resolved')),created_at TEXT NOT NULL,UNIQUE(left_assertion,right_assertion))",
 "CREATE TABLE IF NOT EXISTS memory_feedback(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('useful','irrelevant','incorrect')),created_at TEXT NOT NULL)",
-"CREATE INDEX IF NOT EXISTS idx_memory_feedback_memory ON memory_feedback(memory_id,kind)"
+"CREATE INDEX IF NOT EXISTS idx_memory_feedback_memory ON memory_feedback(memory_id,kind)",
+"CREATE TABLE IF NOT EXISTS graph_events(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,event_type TEXT NOT NULL,title TEXT NOT NULL,occurred_at TEXT NOT NULL,confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),created_at TEXT NOT NULL,UNIQUE(memory_id,event_type,title,occurred_at))",
+"CREATE INDEX IF NOT EXISTS idx_graph_events_time ON graph_events(occurred_at,memory_id)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
