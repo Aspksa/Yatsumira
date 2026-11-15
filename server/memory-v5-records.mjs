@@ -63,7 +63,7 @@ export function reviewAlias(id,{approved,evidence}={}){
     if(!row||row.review_state!=="candidate")throw Object.assign(new Error("Alias cannot be reviewed"),{status:409});
     const state=approved?"reviewed":"rejected";
     db.prepare("UPDATE memory_aliases SET review_state=? WHERE id=?").run(state,id);
-    db.prepare("INSERT INTO core_events(id,event_type,payload,created_at) VALUES(?,?,?,?)").run(randomUUID(),"memory.alias_review",{toString:()=>JSON.stringify({id,state,evidence:string(evidence,400)})}.toString(),now());
+    db.prepare("INSERT INTO core_events(id,event_type,payload,created_at) VALUES(?,?,?,?)").run(randomUUID(),"memory.alias_review",JSON.stringify({id,state,evidence:string(evidence,400)}),now());
     return {id,state};
   });
 }
