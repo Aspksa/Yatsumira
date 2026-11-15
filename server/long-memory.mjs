@@ -31,6 +31,11 @@ function candidates(db,query){
 }
 function ranked(db,query,limit){
   const now=Date.now(),seen=new Set(),words=memoryTokens(query);
+  const feedback=new Map();
+  for(const row of db.prepare("SELECT memory_id AS id,kind,COUNT(*) AS n FROM memory_feedback GROUP BY memory_id,kind").all()){
+    if(!feedback.has(row.id))feedback.set(row.id,{useful:0,irrelevant:0,incorrect:0});
+    feedback.get(row.id)[row.kind]=row.n;
+  }
   return candidates(db,query).filter(row=>!confidential.test(row.content)).map(row=>{
     const sim=similarity(query,row.normalized);
     const have=new Set(memoryTokens(row.normalized));
@@ -38,8 +43,11 @@ function ranked(db,query,limit){
       w.startsWith(t.slice(0,Math.min(5,t.length))))).length/Math.max(1,words.length);
     const lexical=clamp(sim*.7+prefix*.3,0,1);
     const days=Math.max(0,(now-Date.parse(row.created_at))/86400000)||0;
+    const votes=feedback.get(row.id)||{useful:0,irrelevant:0,incorrect:0};
+    const feedbackBoost=Math.max(-.3,Math.min(.10,
+      .025*Math.min(4,votes.useful)-.045*Math.min(4,votes.irrelevant)-.12*Math.min(2,votes.incorrect)));
     const score=lexical+.07*Math.exp(-days/180)+.045*(row.importance-1)/4+
-      .055*row.confidence+(row.verified?.07:0);
+      .055*row.confidence+(row.verified?.07:0)+feedbackBoost;
     return {id:row.id,content:row.content,sourceKind:row.source_kind,sourceId:row.source_id,
       conversationId:row.conversation_id,importance:row.importance,confidence:row.confidence,
       verified:!!row.verified,validFrom:row.valid_from,createdAt:row.created_at,
@@ -123,4 +131,11 @@ export function memoryOverview(){
     associations:db.prepare("SELECT COUNT(*) AS n FROM memory_links").get().n,
     index:"sqlite-fts5+subword-hybrid",neuralEmbeddings:false
   }));
+}
+
+/** Working context candidates are selected only from explicit verified entries. */
+export function workingMemoryCandidates({limit=8}={}){
+  return withCoreDatabase(db=>db.prepare(
+    "SELECT id,content,source_kind AS sourceKind,source_id AS sourceId,importance,confidence,verified,created_at AS createdAt FROM memory_entries WHERE state='active' AND verified=1 ORDER BY importance DESC,updated_at DESC LIMIT ?"
+  ).all(Math.max(1,Math.min(30,Number(limit)||8))).filter(row=>!confidential.test(row.content)));
 }
