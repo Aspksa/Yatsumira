@@ -1,24 +1,13 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions DisableDelayedExpansion
 title YATSUMIRA
-cd /d "%~dp0"
-
-where npm.cmd >nul 2>&1
-if errorlevel 1 (
-    echo Node.js and npm are required. Install from https://nodejs.org/
+pushd "%~dp0" || exit /b 1
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start.ps1"
+set "result=%errorlevel%"
+popd
+if not "%result%"=="0" (
+    echo.
+    echo YATSUMIRA startup failed. Exit code: %result%
     pause
-    exit /b 1
 )
-
-if not exist "node_modules\vite\bin\vite.js" (
-    call npm.cmd install
-    if errorlevel 1 (
-        echo Failed to install dependencies.
-        pause
-        exit /b 1
-    )
-)
-
-call npm.cmd run dev
-if errorlevel 1 pause
-endlocal
+endlocal & exit /b %result%
