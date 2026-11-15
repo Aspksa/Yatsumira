@@ -97,3 +97,39 @@ export function memoryLayers(){
     return {counts,conversationSummaries:summaries,policy:"classifications are heuristic, not verified facts"};
   });
 }
+
+/** Explicit source-backed review; heuristics cannot approve their own claims. */
+export function reviewCandidateFact(id,{decision="reviewed",evidence=""}={}){
+  if(!["reviewed","rejected"].includes(decision)||!String(evidence).trim())
+    throw Object.assign(new Error("Fact review requires decision and evidence"),{status:400});
+  return withCoreDatabase(db=>{
+    db.exec("BEGIN IMMEDIATE");
+    try{
+      const fact=db.prepare("SELECT id,review_state FROM memory_facts WHERE id=?").get(id);
+      if(!fact)throw Object.assign(new Error("Fact candidate not found"),{status:404});
+      if(fact.review_state!=="candidate")throw Object.assign(new Error("Already reviewed"),{status:409});
+      db.prepare("UPDATE memory_facts SET review_state=? WHERE id=?").run(decision,id);
+      db.prepare("INSERT INTO core_events(id,event_type,payload,created_at) VALUES(?,?,?,?)")
+        .run(randomUUID(),"memory.fact_reviewed",JSON.stringify({factId:id,decision,evidence:String(evidence).slice(0,600)}),now());
+      db.exec("COMMIT");
+      return {id,decision};
+    }catch(error){db.exec("ROLLBACK");throw error;}
+  });
+}
+export function resolveMemoryConflict(id,{decision,note=""}={}){
+  if(!["resolved","dismissed"].includes(decision)||!String(note).trim())
+    throw Object.assign(new Error("Conflict resolution requires decision and rationale"),{status:400});
+  return withCoreDatabase(db=>{
+    db.exec("BEGIN IMMEDIATE");
+    try{
+      const item=db.prepare("SELECT review_state FROM memory_conflicts WHERE id=?").get(id);
+      if(!item)throw Object.assign(new Error("Conflict not found"),{status:404});
+      if(item.review_state!=="pending")throw Object.assign(new Error("Conflict already reviewed"),{status:409});
+      db.prepare("UPDATE memory_conflicts SET review_state=? WHERE id=?").run(decision,id);
+      db.prepare("INSERT INTO core_events(id,event_type,payload,created_at) VALUES(?,?,?,?)")
+        .run(randomUUID(),"memory.conflict_reviewed",JSON.stringify({conflictId:id,decision,note:String(note).slice(0,600)}),now());
+      db.exec("COMMIT");
+      return {id,decision};
+    }catch(error){db.exec("ROLLBACK");throw error;}
+  });
+}
