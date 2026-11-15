@@ -6,8 +6,9 @@ Set-Location -LiteralPath $root
 
 function Get-UsableNode {
     $node = Get-Command 'node.exe' -ErrorAction SilentlyContinue
-    $npm = Get-Command 'npm.cmd' -ErrorAction SilentlyContinue
-    if ($null -eq $node -or $null -eq $npm) { return $false }
+    if ($null -eq $node) { return $false }
+    $npmPath = Join-Path (Split-Path -Parent $node.Source) 'npm.cmd'
+    if (-not (Test-Path -LiteralPath $npmPath)) { return $false }
     try {
         $version = & $node.Source --version
         if ($LASTEXITCODE -ne 0) { return $false }
@@ -96,7 +97,8 @@ try {
     Write-Host "[YATSUMIRA] Node.js $nodeVersion"
 
     $vite = Join-Path $root 'node_modules\vite\bin\vite.js'
-    if (-not (Test-Path -LiteralPath $vite)) {
+    $tsc = Join-Path $root 'node_modules\typescript\bin\tsc'
+    if (-not (Test-Path -LiteralPath $vite) -or -not (Test-Path -LiteralPath $tsc)) {
         Write-Host '[YATSUMIRA] Installing web dependencies...'
         & npm.cmd install --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw 'npm install failed.' }
@@ -111,7 +113,7 @@ try {
         $startPort = $parsedPort
     }
     $port = Find-AvailablePort $startPort
-    Write-Host "[YATSUMIRA] Opening website on http://127.0.0.1:$port/"
+    Write-Host "[YATSUMIRA] Starting at http://127.0.0.1:$port/ (Vite will print the final URL)"
     # Vite also falls back to the next available port if one becomes occupied.
     & npm.cmd run dev -- --host 127.0.0.1 --port $port --open
     if ($LASTEXITCODE -ne 0) { throw "Vite exited with code $LASTEXITCODE." }
