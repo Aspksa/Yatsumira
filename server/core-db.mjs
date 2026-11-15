@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=6;
+const SCHEMA=7;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -66,7 +66,17 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_representations(memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,representation_kind TEXT NOT NULL CHECK(representation_kind IN ('summary','distillation','reflection')),content TEXT NOT NULL,verified INTEGER NOT NULL DEFAULT 0 CHECK(verified IN (0,1)),created_at TEXT NOT NULL,PRIMARY KEY(memory_id,representation_kind))",
 "CREATE TABLE IF NOT EXISTS memory_snapshots(id TEXT PRIMARY KEY,revision_label TEXT NOT NULL,knowledge_count INTEGER NOT NULL,assertion_count INTEGER NOT NULL,checksum TEXT NOT NULL,created_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_retrieval_profiles(name TEXT PRIMARY KEY,weights_json TEXT NOT NULL,updated_at TEXT NOT NULL)",
-"CREATE INDEX IF NOT EXISTS idx_hypothesis_kind ON memory_hypotheses(kind,status)"
+"CREATE INDEX IF NOT EXISTS idx_hypothesis_kind ON memory_hypotheses(kind,status)",
+"CREATE TABLE IF NOT EXISTS memory_reasoning_steps(id TEXT PRIMARY KEY,session_id TEXT NOT NULL,step_key TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('question','hypothesis','evidence','inference','conclusion')),content TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL,UNIQUE(session_id,step_key))",
+"CREATE INDEX IF NOT EXISTS idx_reasoning_session ON memory_reasoning_steps(session_id,created_at)",
+"CREATE TABLE IF NOT EXISTS memory_reasoning_evidence(step_id TEXT NOT NULL REFERENCES memory_reasoning_steps(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,stance TEXT NOT NULL CHECK(stance IN ('supports','opposes','context')),PRIMARY KEY(step_id,memory_id,stance))",
+"CREATE TABLE IF NOT EXISTS memory_reasoning_edges(from_step TEXT NOT NULL REFERENCES memory_reasoning_steps(id) ON DELETE CASCADE,to_step TEXT NOT NULL REFERENCES memory_reasoning_steps(id) ON DELETE CASCADE,relation TEXT NOT NULL CHECK(relation IN ('supports','challenges','derived_from')),PRIMARY KEY(from_step,to_step,relation))",
+"CREATE TABLE IF NOT EXISTS memory_entity_alignments(id TEXT PRIMARY KEY,left_node TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,right_node TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,status TEXT NOT NULL DEFAULT 'candidate' CHECK(status IN ('candidate','reviewed','rejected')),confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),created_at TEXT NOT NULL,UNIQUE(left_node,right_node,source_memory_id))",
+"CREATE TABLE IF NOT EXISTS memory_procedures(id TEXT PRIMARY KEY,source_task_id TEXT NOT NULL REFERENCES memory_tasks(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,description TEXT NOT NULL,steps_json TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL,UNIQUE(source_task_id))",
+"CREATE TABLE IF NOT EXISTS memory_consolidations(id TEXT PRIMARY KEY,content TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('episode','semantic','compressed')),review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_consolidation_sources(consolidation_id TEXT NOT NULL REFERENCES memory_consolidations(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,PRIMARY KEY(consolidation_id,memory_id))",
+"CREATE TABLE IF NOT EXISTS memory_association_reviews(id TEXT PRIMARY KEY,link_id TEXT NOT NULL REFERENCES memory_links(id) ON DELETE CASCADE,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,decision TEXT NOT NULL CHECK(decision IN ('strengthen','weaken')),created_at TEXT NOT NULL)",
+"CREATE INDEX IF NOT EXISTS idx_alignment_status ON memory_entity_alignments(status,confidence)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
