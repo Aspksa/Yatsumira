@@ -291,3 +291,40 @@ To write extracted, unverified candidate relations to SQLite, explicitly add `--
 **Boundaries:** Neural extraction, reliable pronoun resolution, multilingual semantics, causes/effects and hallucination detection cannot be guaranteed without verified models and reliable source evidence. The new routines are auditable conservative steps, not artificial general intelligence or fully autonomous learning.
 
 Tests: `node scripts/test-memory-v5.mjs` on Windows and Linux, plus the existing CORE compatibility, migration and browser checks.
+
+## CORE v6 — selected universal memory reasoning and graph extensions
+
+Version 6 migrates the existing portable SQLite database in place. All changes are backend-only: no CSS, HTML, NEXUS canvas, menus or chat UI controls were added. It is not an independent general intelligence and it does not silently edit or certify source knowledge.
+
+### Selected roadmap items — what the current implementation actually does
+
+- **1, 9, 10, 31–34:** bounded query planning, multi-query lexical/graph/PageRank retrieval, controlled additional search for complex chat prompts, source-aware result fusion and offline fallback. Simple questions retain a cheap retrieval path.
+- **2–5, 7–8:** persistent hypotheses with source-linked support/opposition, analogy and counterfactual candidate types, unanswered-question generation and uncertainty indicators. These are structured analysis proposals, not validated explanations or simulated alternative worlds.
+- **11–12:** topic/community graph summaries and existing optional provider-generated vector representations. The universal graph remains stored in local SQLite.
+- **13–14:** deterministic two-round neighborhood feature propagation (GNN-compatible inputs, **not a trained GNN**) and review-only predictions of missing links plus structural anomaly diagnostics.
+- **15–17:** generic relation suggestions from the existing extractor, provisional hierarchical ontology types, isolated-node/self-loop/ambiguous-type checks.
+- **18–20:** source-grounded causal candidates, existing temporal event graph and path explanations. Automatic causation inference is deliberately excluded.
+- **22–26:** extractive memory representations and reflections, immutable source IDs, logical state snapshots and provenance-preserving summaries. Old text is never automatically overwritten.
+- **27–30:** heuristic trust priority, bounded age-based ranking signals, original-data-reconstructable indices from prior versions and logical snapshot checksums. For physical backups and restoration use the separate SQLite VACUUM INTO backup command.
+- **35–36:** compatible external reranker support and existing explicit feedback-aware ranking; neither learns neural model weights automatically.
+- **37–38:** negative-source candidate search for unresolved contradictory claims, claim-to-source lexical tracing and explicitly unverified answer diagnostics. A source citation does not establish logical entailment.
+- **47:** local offline lexical/graph retrieval remains usable when Cloud.ru or an optional embedding/reranker service is unavailable; AI answer generation still requires the configured Cloud.ru service.
+
+### Local-only commands
+
+    node scripts/memory-v6.mjs plan "Как связаны мои проекты?"
+    node scripts/memory-v6.mjs research "Как связаны мои проекты?"
+    node scripts/memory-v6.mjs multiquery "проекты и автомобили"
+    node scripts/memory-v6.mjs anomalies
+    node scripts/memory-v6.mjs structural
+    node scripts/memory-v6.mjs possible-links
+    node scripts/memory-v6.mjs communities
+    node scripts/memory-v6.mjs opposing "Проект Заря"
+    node scripts/memory-v6.mjs questions "Что неизвестно про проект?"
+    node scripts/memory-v6.mjs reflect MEMORY_ID distillation
+    node scripts/memory-v6.mjs hypothesis "Предполагаемая связь требует доказательств"
+    node scripts/memory-v6.mjs snapshot baseline
+
+**Important limitations:** neuro-symbolic semantic interpretation, reliable causal analysis, validated counterfactual simulation, real GNN training, automatic ontology discovery and hallucination elimination have not been achieved. User-selected roadmap items have conservative implementation foundations or reuse previously implemented components. New hypotheses, reflections and graph link suggestions are never promoted to verified facts without explicit review. No background cloud calls or additional local dependencies were introduced.
+
+CORE v6 tests (`scripts/test-memory-v6.mjs`) run on Windows and Linux CI alongside schema migration and the complete older CORE test suite.
