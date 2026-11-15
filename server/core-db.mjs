@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=4;
+const SCHEMA=5;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -50,7 +50,16 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_feedback(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('useful','irrelevant','incorrect')),created_at TEXT NOT NULL)",
 "CREATE INDEX IF NOT EXISTS idx_memory_feedback_memory ON memory_feedback(memory_id,kind)",
 "CREATE TABLE IF NOT EXISTS graph_events(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,event_type TEXT NOT NULL,title TEXT NOT NULL,occurred_at TEXT NOT NULL,confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),created_at TEXT NOT NULL,UNIQUE(memory_id,event_type,title,occurred_at))",
-"CREATE INDEX IF NOT EXISTS idx_graph_events_time ON graph_events(occurred_at,memory_id)"
+"CREATE INDEX IF NOT EXISTS idx_graph_events_time ON graph_events(occurred_at,memory_id)",
+"CREATE TABLE IF NOT EXISTS memory_aliases(id TEXT PRIMARY KEY,node_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,alias TEXT NOT NULL,normalized_alias TEXT NOT NULL,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL,UNIQUE(node_id,normalized_alias,source_memory_id))",
+"CREATE INDEX IF NOT EXISTS idx_memory_alias_lookup ON memory_aliases(normalized_alias,review_state)",
+"CREATE TABLE IF NOT EXISTS memory_decisions(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,subject TEXT NOT NULL,choice TEXT NOT NULL,rationale TEXT NOT NULL DEFAULT '',state TEXT NOT NULL DEFAULT 'candidate' CHECK(state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_tasks(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,title TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','done','cancelled')),checkpoint TEXT NOT NULL DEFAULT '',outcome TEXT NOT NULL DEFAULT '',updated_at TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_hyperedges(id TEXT PRIMARY KEY,relation_type TEXT NOT NULL,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_hyperedge_nodes(hyperedge_id TEXT NOT NULL REFERENCES memory_hyperedges(id) ON DELETE CASCADE,node_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,role TEXT NOT NULL,PRIMARY KEY(hyperedge_id,node_id,role))",
+"CREATE TABLE IF NOT EXISTS memory_document_index(source_key TEXT PRIMARY KEY,digest TEXT NOT NULL,indexed_at TEXT NOT NULL,result_json TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_quality_runs(id TEXT PRIMARY KEY,kind TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE INDEX IF NOT EXISTS idx_memory_task_status ON memory_tasks(status,updated_at)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
