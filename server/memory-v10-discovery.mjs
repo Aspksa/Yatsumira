@@ -66,3 +66,34 @@ export function graphDiscoveryStats(){
     causalCandidates:db.prepare("SELECT COUNT(*) AS n FROM graph_v10_causal WHERE state='candidate'").get().n
   }));
 }
+
+/** Find structural bridges: nodes connected to several distinct first-neighbor regions.
+ * This is degree/neighborhood coverage, not a proof of cross-domain semantic transfer.
+ */
+export function knowledgeBridges({limit=20}={}){
+  return withCoreDatabase(db=>{
+    const edges=db.prepare("SELECT a.subject_id AS fromId,a.object_id AS toId,a.memory_id AS memoryId FROM graph_assertions a JOIN memory_entries m ON m.id=a.memory_id WHERE m.state='active' AND a.review_state<>'rejected' AND (a.valid_to IS NULL OR a.valid_to>?) LIMIT 1800").all(now());
+    const adj=new Map(),evidence=new Map();
+    for(const edge of edges){
+      for(const [a,b] of [[edge.fromId,edge.toId],[edge.toId,edge.fromId]]){
+        if(!adj.has(a))adj.set(a,new Set());
+        adj.get(a).add(b);
+        if(!evidence.has(a))evidence.set(a,new Set());
+        evidence.get(a).add(edge.memoryId);
+      }
+    }
+    const lookup=db.prepare("SELECT id,label,node_type AS type FROM graph_nodes WHERE id=?");
+    const results=[];
+    for(const [id,neighbors] of adj){
+      if(neighbors.size<2)continue;
+      const node=lookup.get(id);
+      const types=new Set([...neighbors].map(n=>lookup.get(n)?.type).filter(Boolean));
+      if(types.size<2)continue;
+      results.push({nodeId:id,label:node.label,neighborCount:neighbors.size,neighborTypes:[...types].sort(),
+        sourceMemoryIds:[...evidence.get(id)].slice(0,30),
+        verified:false,note:"Structural bridge candidate"});
+    }
+    return results.sort((a,b)=>b.neighborTypes.length-a.neighborTypes.length||b.neighborCount-a.neighborCount)
+      .slice(0,Math.max(1,Math.min(50,limit)));
+  });
+}
