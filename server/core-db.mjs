@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=7;
+const SCHEMA=8;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -76,7 +76,15 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_consolidations(id TEXT PRIMARY KEY,content TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('episode','semantic','compressed')),review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_consolidation_sources(consolidation_id TEXT NOT NULL REFERENCES memory_consolidations(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,PRIMARY KEY(consolidation_id,memory_id))",
 "CREATE TABLE IF NOT EXISTS memory_association_reviews(id TEXT PRIMARY KEY,link_id TEXT NOT NULL REFERENCES memory_links(id) ON DELETE CASCADE,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,decision TEXT NOT NULL CHECK(decision IN ('strengthen','weaken')),created_at TEXT NOT NULL)",
-"CREATE INDEX IF NOT EXISTS idx_alignment_status ON memory_entity_alignments(status,confidence)"
+"CREATE INDEX IF NOT EXISTS idx_alignment_status ON memory_entity_alignments(status,confidence)",
+"CREATE TABLE IF NOT EXISTS memory_source_fusions(id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('fusion','pattern','skill','gap')),content TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_source_fusion_refs(fusion_id TEXT NOT NULL REFERENCES memory_source_fusions(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,PRIMARY KEY(fusion_id,memory_id))",
+"CREATE TABLE IF NOT EXISTS memory_v8_tasks(id TEXT PRIMARY KEY,job_type TEXT NOT NULL,payload TEXT NOT NULL DEFAULT '{}',state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN ('pending','running','completed','failed')),attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts>=0),last_error TEXT NOT NULL DEFAULT '',scheduled_at TEXT NOT NULL,claimed_at TEXT,finished_at TEXT,created_at TEXT NOT NULL,UNIQUE(job_type,payload))",
+"CREATE INDEX IF NOT EXISTS idx_v8_jobs_pending ON memory_v8_tasks(state,scheduled_at)",
+"CREATE TABLE IF NOT EXISTS memory_v8_metrics(id TEXT PRIMARY KEY,metric_type TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_v8_graph_snapshots(id TEXT PRIMARY KEY,checksum TEXT NOT NULL,as_of TEXT NOT NULL,nodes INTEGER NOT NULL,edges INTEGER NOT NULL,created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_v8_experiments(id TEXT PRIMARY KEY,name TEXT NOT NULL,baseline_json TEXT NOT NULL,candidate_json TEXT NOT NULL,accepted INTEGER NOT NULL CHECK(accepted IN (0,1)),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_v8_decision_outcomes(id TEXT PRIMARY KEY,decision_id TEXT NOT NULL REFERENCES memory_decisions(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,outcome TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
