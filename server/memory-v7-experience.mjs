@@ -113,3 +113,21 @@ export function reinforceLink(linkId,{memoryId,decision="strengthen"}={}){
     return {score,audited:true};
   });
 }
+
+/** Autobiographical audit: actual task completions, decisions, and reviewed outcomes. */
+export function experienceTimeline({limit=50}={}){
+  return withCoreDatabase(db=>{
+    const size=Math.min(100,Math.max(1,Number(limit)||50));
+    const tasks=db.prepare("SELECT t.id,t.title,t.status,t.outcome,t.updated_at AS occurredAt,m.source_kind AS sourceKind,m.source_id AS sourceId FROM memory_tasks t JOIN memory_entries m ON m.id=t.memory_id WHERE m.state='active' ORDER BY t.updated_at DESC LIMIT ?").all(size);
+    const decisions=db.prepare("SELECT d.id,d.subject,d.choice,d.rationale,d.state,d.created_at AS occurredAt,m.source_id AS sourceId FROM memory_decisions d JOIN memory_entries m ON m.id=d.memory_id WHERE m.state='active' ORDER BY d.created_at DESC LIMIT ?").all(size);
+    return [...tasks.map(t=>({...t,kind:"task"})),...decisions.map(d=>({...d,kind:"decision"}))]
+      .sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)).slice(0,size);
+  });
+}
+/** Bounded, idempotent conversion of completed tasks to unverified procedure candidates. */
+export function consolidateCompletedTasks({limit=20}={}){
+  const tasks=withCoreDatabase(db=>db.prepare("SELECT t.id FROM memory_tasks t JOIN memory_entries m ON m.id=t.memory_id WHERE t.status='done' AND LENGTH(TRIM(t.outcome))>0 AND m.state='active' AND NOT EXISTS(SELECT 1 FROM memory_procedures p WHERE p.source_task_id=t.id) ORDER BY t.updated_at LIMIT ?").all(Math.min(40,Math.max(1,Number(limit)||20))));
+  let stored=0;
+  for(const task of tasks)if(procedureFromTask(task.id).stored)stored++;
+  return {processed:tasks.length,stored,reviewed:false};
+}
