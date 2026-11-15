@@ -1,7 +1,8 @@
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
+import { mkdirSync } from 'node:fs';
 
 const root=resolve(import.meta.dirname,'..');
 const server=await createServer({configFile:resolve(root,'vite.config.mjs'),root,server:{host:'127.0.0.1',port:0,strictPort:false,open:false}});
@@ -17,6 +18,12 @@ try {
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   const response=await page.goto(url,{waitUntil:'networkidle'});
   assert.equal(response?.status(),200);
+  // Snapshots are produced from actual Chromium rendering for visual review.
+  const visualDir=join(root,'artifacts','visual');
+  mkdirSync(visualDir,{recursive:true});
+  await page.waitForTimeout(220);
+  await page.locator('#app').screenshot({path:join(visualDir,'nexus-atlas-desktop.png')});
+  await page.screenshot({path:join(visualDir,'yatsumira-desktop.png'),fullPage:true});
   const result=await page.evaluate(()=>{
     const canvas=document.querySelector('#app');
     return {
@@ -194,6 +201,7 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(100);
   assert.equal(await page.locator('.chat-panel').count(),1);
+  await page.screenshot({path:join(visualDir,'yatsumira-mobile.png'),fullPage:true});
   assert.deepEqual(errors,[]);
   console.log('[YATSUMIRA] Canvas, chat, responsive layout, console: OK');
 } finally {await browser?.close();await server.close();}
