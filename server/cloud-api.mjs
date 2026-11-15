@@ -17,8 +17,7 @@ function powerShell(script, input) {
   return result.stdout.trim();
 }
 function saveKey(value) {
-  runtimeKey = value;
-  if (process.platform !== "win32") return false;
+  if (process.platform !== "win32") { runtimeKey = value; return false; }
   mkdirSync(ROOT, { recursive: true });
   // Windows DPAPI encrypts for the current Windows user. Secret is passed on STDIN, never CLI arguments.
   const ciphertext = powerShell(
@@ -27,6 +26,7 @@ function saveKey(value) {
   );
   if (!ciphertext) throw new Error("Credential encryption failed");
   writeFileSync(KEY_FILE, ciphertext, { mode: 0o600 });
+  runtimeKey = value;
   return true;
 }
 function getKey() {
@@ -110,6 +110,7 @@ export function cloudApiPlugin() {
             if (typeof data.key !== "string" || data.key.trim().length < 8 || data.key.length > 8192)
               return json(res,400,{error:"Некорректный ключ API"});
             const persisted = saveKey(data.key.trim());
+            setModel("");
             return json(res,200,{configured:true,persisted});
           }
           if (pathname === "/api/cloud/key" && req.method === "DELETE") {
