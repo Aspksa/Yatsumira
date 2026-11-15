@@ -7,6 +7,7 @@ import {withCoreDatabase} from "./core-db.mjs";
 import {confidential} from "./memory-store.mjs";
 import {recallMemory} from "./long-memory.mjs";
 import {graphRecall} from "./universal-memory-graph.mjs";
+import {personalizedGraphRank} from "./memory-v5-reasoning.mjs";
 import {storeEmbedding,vectorRecall,reciprocalFusion,rerankCandidates} from "./memory-vectors.mjs";
 function settings(){
   const url=process.env.YATSUMIRA_MEMORY_EMBED_URL||"";
@@ -90,8 +91,10 @@ export async function rerankWithProvider(query,items,{request=fetch}={}){
 export async function hybridRecall(query,{limit=8,request=fetch}={}){
   const lexical=recallMemory(query,{limit:Math.min(30,Math.max(limit*3,12))});
   const associations=graphRecall(query,{limit:Math.min(20,Math.max(limit*2,8)),hops:2});
-  // Graph links are candidate relations, not facts: any retrieved text retains its source.
-  const local=associations.length?reciprocalFusion(lexical,associations,{limit:Math.max(15,limit*3)}):lexical;
+  const rankedGraph=personalizedGraphRank(query,{limit:Math.min(20,Math.max(limit*2,8))});
+  // Candidate links improve retrieval, but never change the verification state of source memories.
+  const graphCombined=rankedGraph.length?reciprocalFusion(associations,rankedGraph,{limit:Math.max(15,limit*3)}):associations;
+  const local=graphCombined.length?reciprocalFusion(lexical,graphCombined,{limit:Math.max(15,limit*3)}):lexical;
   if(!settings())return {mode:"lexical-subword",results:local.slice(0,limit),graphResults:associations.length};
   try{
     const embedding=await embedText(query,{request});
