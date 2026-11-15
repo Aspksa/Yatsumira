@@ -9,6 +9,7 @@ import {normalizeMemory} from "./memory-store.mjs";
 import {indexUniversalGraph} from "./universal-memory-graph.mjs";
 import {maybeRecordMemoryHealth} from "./memory-v5-health.mjs";
 import {consolidateCompletedTasks} from "./memory-v7-experience.mjs";
+import {scheduleMemoryJob,runMemoryJob,recoverInterruptedJobs} from "./memory-v8-operations.mjs";
 
 const stamp=()=>new Date().toISOString();
 function loadJob(db,name){
@@ -109,7 +110,19 @@ export function recordRetrievalEvaluation(cases,retrieve){
   return report;
 }
 export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
-  const job=()=>{try{consolidateStep({batch:35});indexUniversalGraph({batch:35});summarizeConversation({conversationId:"default",maxMessages:80});consolidateCompletedTasks({limit:10});maybeRecordMemoryHealth();}catch(error){onError(error);}};
+  // Recover checkpointed jobs once when the local server starts; no network calls.
+  try{recoverInterruptedJobs();}catch(error){onError(error);}
+  const job=()=>{try{
+    consolidateStep({batch:35});
+    indexUniversalGraph({batch:35});
+    summarizeConversation({conversationId:"default",maxMessages:80});
+    consolidateCompletedTasks({limit:10});
+    maybeRecordMemoryHealth();
+    const day=new Date().toISOString().slice(0,10);
+    scheduleMemoryJob("graph-audit",{day});
+    scheduleMemoryJob("experience-patterns",{day});
+    runMemoryJob();
+  }catch(error){onError(error);}};
   const timer=setInterval(job,Math.max(60000,intervalMs));
   timer.unref?.();
   return ()=>clearInterval(timer);
