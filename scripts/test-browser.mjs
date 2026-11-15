@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import assert from 'node:assert/strict';
 import { resolve, join } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const root=resolve(import.meta.dirname,'..');
 const server=await createServer({configFile:resolve(root,'vite.config.mjs'),root,server:{host:'127.0.0.1',port:0,strictPort:false,open:false}});
@@ -81,6 +81,18 @@ try {
       bands:total.map((n,i)=>Number((colored[i]/Math.max(1,n)).toFixed(4)))};
   });
   console.log('[YATSUMIRA][VISUAL] '+JSON.stringify(visualMetrics));
+  const referenceBands=[.191,.133,.201,.030,.159]; // Approximate from the supplied screenshot.
+  const visualComparison={
+    note:"Approximate radial color-density comparison; not SSIM or pixel-perfect likeness.",
+    viewport:{width:1440,height:900},
+    referenceBands,
+    measuredBands:visualMetrics.bands,
+    absoluteDifferences:visualMetrics.bands.map((x,i)=>Number(Math.abs(x-referenceBands[i]).toFixed(4))),
+    center:visualMetrics.center,
+    radiusFraction:visualMetrics.radiusFraction,
+  };
+  writeFileSync(join(visualDir,'reference-comparison.json'),JSON.stringify(visualComparison,null,2)+'\n','utf8');
+
   assert.ok(visualMetrics.bands.some(value=>value>.01),'Atlas must render visible colored detail');
 
   const result=await page.evaluate(()=>{
