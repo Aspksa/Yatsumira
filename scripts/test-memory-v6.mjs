@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {structuralGraphFeatures,suggestMissingGraphLinks,graphOfCommunities,causalGraph} from "../server/memory-v6-graph-features.mjs";
 import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
@@ -59,6 +60,12 @@ try{
   assert.ok(retrievalTrustScore([{id:sx,confidence:.8,verified:false}])[0].trustScore<.85);
   assert.ok(ageAwarePriority({createdAt:"2020-01-01"})<ageAwarePriority({createdAt:new Date().toISOString()}));
   assertGraphRelation({memoryId:sx,subject:"Датчик К",predicate:"uses",object:"Модуль Лира",validFrom:"2025-01-01"});
+  const features=structuralGraphFeatures({rounds:2});
+  assert.ok(features.length>=4);
+  assert.equal(features.every(x=>x.vector.length===4&&x.vector.every(Number.isFinite)),true);
+  assert.ok(Array.isArray(suggestMissingGraphLinks()));
+  assert.ok(graphOfCommunities().communities.length>0);
+  assert.deepEqual(causalGraph({reviewedOnly:true}),[]);
   const snapshot=recordMemorySnapshot("test-baseline");
   assert.match(snapshot.checksum,/^[a-f0-9]{64}$/);
   assert.equal(snapshot.memories,3);
