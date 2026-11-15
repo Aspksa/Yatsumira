@@ -1,3 +1,4 @@
+import {recordAnswerAudit} from "./memory-v5-quality.mjs";
 import { hybridRecall } from "./memory-provider.mjs";
 import {startCoreMaintenance,memoryMaintenanceStatus} from "./memory-maintenance.mjs";
 import { recallMemory, makeMemoryContext, memoryOverview } from "./long-memory.mjs";
@@ -189,6 +190,9 @@ export function cloudApiPlugin() {
             // This does not mark an AI output as a verified fact.
             commitAssistantExchange({messages:input.messages,answer,model,
               sessionId:input.sessionId,requestId:input.requestId});
+            // Diagnostics are best-effort and never block a completed user answer.
+            try{recordAnswerAudit(input.messages.at(-1).content,answer,recall.results);}
+            catch(error){console.error("[YATSUMIRA CORE] Evidence audit:",error?.message||String(error));}
             return json(res,200,{answer,model});
           }
           return json(res,404,{error:"Unknown endpoint"});
