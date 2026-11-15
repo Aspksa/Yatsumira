@@ -19,6 +19,21 @@
         <label for="chat-width">Ширина чата <output id="width-value">35%</output></label>
         <input id="chat-width" type="range" min="25" max="55" value="35"/>
         <div class="setting-actions"><button type="button" id="reset-view">Сбросить масштаб</button><button type="button" id="reset-settings">По умолчанию</button></div>
+        <section class="knowledge-section" aria-labelledby="knowledge-heading">
+          <h2 id="knowledge-heading">Развитие NEXUS</h2>
+          <p>Добавляйте новые сведения. Узлы сохраняются локально и появятся на карте.</p>
+          <label for="knowledge-sector">Категория</label>
+          <select id="knowledge-sector">
+            <option value="0">Память</option><option value="1">Знания</option>
+            <option value="2">Агенты</option><option value="3">Анализ</option>
+            <option value="4">Проекты</option><option value="5">Связи</option>
+            <option value="6">Архив</option><option value="7">Система</option>
+          </select>
+          <label for="knowledge-text">Новая информация</label>
+          <textarea id="knowledge-text" maxlength="4000" rows="4" placeholder="Запишите факт, заметку или описание документа..."></textarea>
+          <button id="knowledge-add" type="button">Добавить в NEXUS</button>
+          <div id="knowledge-status" role="status" aria-live="polite">Данные хранятся только на этом компьютере.</div>
+        </section>
         <div class="cloud-section" aria-labelledby="cloud-heading">
           <h2 id="cloud-heading">Подключение Cloud.ru</h2>
           <p class="cloud-help">Foundation Models · API-ключ хранится локально, не в браузере.</p>
@@ -44,7 +59,7 @@
           <section class="nexus-card" id="nexus-card" aria-label="Карточка узла NEXUS" hidden>
             <div class="nexus-card-top">
               <span id="nexus-card-type">ФАКТ</span>
-              <span class="nexus-demo-tag">ДЕМО</span>
+              <span class="nexus-demo-tag" id="nexus-node-badge">ДЕМО</span>
               <button type="button" id="nexus-card-close" aria-label="Закрыть карточку">×</button>
             </div>
             <h2 id="nexus-card-title">Узел</h2>
