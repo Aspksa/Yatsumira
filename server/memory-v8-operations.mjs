@@ -8,9 +8,11 @@ import {recallMemory} from "./long-memory.mjs";
 import {graphQuality} from "./memory-v5-reasoning.mjs";
 import {memoryGaps,experiencePatterns} from "./memory-v8-learning.mjs";
 import {discoverGraphLinks,graphAnomalyReview} from "./memory-v10-discovery.mjs";
+import {learnFromOutcomes,learningReport} from "./memory-v12-learning.mjs";
+import {graphLearningOverview,traceGraphAnomalies} from "./memory-v12-graph-learning.mjs";
 const stamp=()=>new Date().toISOString();
 const tx=fn=>withCoreDatabase(db=>{db.exec("BEGIN IMMEDIATE");try{const out=fn(db);db.exec("COMMIT");return out;}catch(e){db.exec("ROLLBACK");throw e;}});
-const types=new Set(["health","graph-audit","experience-patterns","knowledge-gaps","v10-link-discovery","v10-anomaly-review"]);
+const types=new Set(["health","graph-audit","experience-patterns","knowledge-gaps","v10-link-discovery","v10-anomaly-review","v12-experience","v12-graph-research","v12-learning-report"]);
 export function scheduleMemoryJob(kind,payload={},scheduledAt=stamp()){
   if(!types.has(kind))throw Error("Unsupported memory job");
   const content=JSON.stringify(payload);
@@ -45,7 +47,10 @@ export function runMemoryJob({handlers={},now=stamp(),maxAttempts=3}={}){
       "experience-patterns":()=>experiencePatterns({limit:20}),
       "knowledge-gaps":()=>memoryGaps(typeof payload.query==="string"?payload.query.slice(0,300):"unanswered questions"),
       "v10-link-discovery":()=>discoverGraphLinks({limit:12,persist:true}),
-      "v10-anomaly-review":()=>graphAnomalyReview({limit:40,persist:true})
+      "v10-anomaly-review":()=>graphAnomalyReview({limit:40,persist:true}),
+      "v12-experience":()=>learnFromOutcomes({limit:5}),
+      "v12-graph-research":()=>({bridges:graphLearningOverview({limit:5}).bridges.length,anomalies:traceGraphAnomalies({limit:8}).isolatedNodes.length}),
+      "v12-learning-report":()=>learningReport({persist:true})
     };
     const handler=handlers[job.job_type]||operations[job.job_type];
     if(!handler)throw Error("Unknown handler");
