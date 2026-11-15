@@ -180,6 +180,7 @@ export function drawNexusGroupShapes(ctx:CanvasRenderingContext2D,mode:"rings"|"
     if(zoom<.82)return;
     ctx.save();
     ctx.textAlign="center";ctx.textBaseline="middle";
+    const labelBoxes: {left:number;right:number;top:number;bottom:number}[]=[];
     for(const group of groups){
       const demo=(group as {id?:string}).id?.startsWith("demo-") ?? false;
       if(demo&&zoom<.97)continue;
@@ -187,7 +188,15 @@ export function drawNexusGroupShapes(ctx:CanvasRenderingContext2D,mode:"rings"|"
       ctx.strokeStyle=color;ctx.globalAlpha=.25;ctx.lineWidth=.8;
       if(!demo){ctx.beginPath();ctx.arc(group.x,group.y,Math.max(10,group.radius),0,PI2);ctx.stroke();}
       ctx.fillStyle=color;ctx.globalAlpha=demo?.48:.88;ctx.font=(demo?"7px ":"8px ")+"Consolas, monospace";
-      ctx.fillText(group.label.slice(0,25),group.x,group.y-group.radius-(demo?3:10),115);
+      const label=group.label.slice(0,25);
+      const textY=group.y-group.radius-(demo?3:10);
+      const halfWidth=Math.min(57.5,ctx.measureText(label).width/2);
+      const box={left:group.x-halfWidth-4,right:group.x+halfWidth+4,top:textY-7,bottom:textY+7};
+      const collides=labelBoxes.some(previous=>box.left<previous.right&&box.right>previous.left&&box.top<previous.bottom&&box.bottom>previous.top);
+      if(!collides || !demo){
+        ctx.fillText(label,group.x,textY,115);
+        labelBoxes.push(box);
+      }
       if(!demo&&zoom>1.85){ctx.font="7px Consolas, monospace";ctx.globalAlpha=.6;ctx.fillText(group.count+" записей",group.x,group.y+group.radius+8,90);}
     }
     ctx.restore();
