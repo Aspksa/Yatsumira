@@ -1,0 +1,350 @@
+export type NexusKind = "document" | "fact" | "agent";
+export type NexusNode = {
+  id: string; title: string; kind: NexusKind; sector: number;
+  ring: number; importance: number; x: number; y: number; radius: number;
+};
+export type NexusSector = { title: string; count: number; start: number; end: number; color: string };
+export type NexusLayout = { nodes: NexusNode[]; sectors: NexusSector[]; rings: number[] };
+export type NexusStats = { fps: number; drawn: number; total: number; detail: string };
+
+const TWO_PI = Math.PI * 2;
+const RINGS = [94, 132, 170, 208, 246, 284, 322, 360];
+const CATALOG = [
+  { title: "Память", color: "#56ded0", count: 108 },
+  { title: "Знания", color: "#8fcbe8", count: 168 },
+  { title: "Агенты", color: "#b5a2f0", count: 76 },
+  { title: "Анализ", color: "#d9ac79", count: 124 },
+  { title: "Проекты", color: "#75d1a7", count: 86 },
+  { title: "Связи", color: "#81b1cc", count: 142 },
+  { title: "Архив", color: "#c7b2a7", count: 112 },
+  { title: "Система", color: "#a391df", count: 80 }
+] as const;
+
+function hash(seed: number): number {
+  let value = seed | 0;
+  value = Math.imul(value ^ (value >>> 16), 0x7feb352d);
+  value = Math.imul(value ^ (value >>> 15), 0x846ca68b);
+  return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
+}
+function kindFor(sector: number, index: number): NexusKind {
+  if (sector === 2 && index % 3 === 0) return "agent";
+  return index % 4 === 0 ? "document" : "fact";
+}
+const padding = 0.032;
+export function buildNexusLayout(counts: readonly number[] = CATALOG.map(item => item.count)): NexusLayout {
+  const safeCounts = CATALOG.map((_, i) => Math.max(0, Math.min(1600, Math.floor(counts[i] ?? 0))));
+  const total = safeCounts.reduce((a, b) => a + b, 0);
+  const safeTotal = total || 1;
+  const available = TWO_PI - CATALOG.length * padding;
+  let cursor = -Math.PI / 2;
+  const sectors: NexusSector[] = CATALOG.map((item, i) => {
+    // Minimum 0.10 radians keeps empty sectors discoverable.
+    const span = available * (safeCounts[i] / safeTotal);
+    const start = cursor + padding / 2;
+    cursor += span + padding;
+    return { title: item.title, color: item.color, count: safeCounts[i], start, end: cursor - padding / 2 };
+  });
+  const nodes: NexusNode[] = [];
+  for (let sectorIndex = 0; sectorIndex < sectors.length; sectorIndex++) {
+    const sector = sectors[sectorIndex];
+    const span = sector.end - sector.start;
+    const bins: { count: number; radius: number }[] = RINGS.map((radius, i) => ({
+      count: 0, radius
+    }));
+    // Guarantee at least 13 world units between nodes, including outer icon diameter.
+    const capacities = RINGS.map(r => Math.max(0, Math.floor(r * span / 14)));
+    let remaining = sector.count;
+    let next = 0;
+    while (remaining > 0) {
+      let found = false;
+      for (let attempt = 0; attempt < RINGS.length; attempt++) {
+        const ringIndex = (next + attempt) % RINGS.length;
+        if (bins[ringIndex].count < capacities[ringIndex]) {
+          bins[ringIndex].count++;
+          remaining--;
+          next = (ringIndex + 1) % RINGS.length;
+          found = true;
+          break;
+        }
+      }
+      if (!found) break; // Avoid collisions rather than overfilling a ring.
+    }
+    let serial = 0;
+    for (let ringIndex = 0; ringIndex < bins.length; ringIndex++) {
+      const bin = bins[ringIndex];
+      for (let j = 0; j < bin.count; j++) {
+        const fraction = (j + .5) / bin.count;
+        const angle = sector.start + span * fraction;
+        const importance = 1 + (hash(sectorIndex * 997 + serial * 79) > .90 ? 2 :
+          hash(sectorIndex * 113 + serial * 53) > .65 ? 1 : 0);
+        const radius = importance === 3 ? 4.5 : importance === 2 ? 3.3 : 2.2;
+        const kind = kindFor(sectorIndex, serial);
+        const id = "n-" + sectorIndex + "-" + serial;
+        nodes.push({
+          id, kind, sector: sectorIndex, ring: ringIndex, importance,
+          title: sector.title + " · " + (kind === "document" ? "документ" : kind === "agent" ? "агент" : "факт") + " " + (serial + 1),
+          radius, x: Math.cos(angle) * bin.radius, y: Math.sin(angle) * bin.radius
+        });
+        serial++;
+      }
+    }
+  }
+  return { nodes, sectors, rings: [...RINGS] };
+}
+
+export class NexusView {
+  readonly canvas: HTMLCanvasElement;
+  private readonly context: CanvasRenderingContext2D;
+  private layout = buildNexusLayout();
+  private readonly onSelect: (node: NexusNode) => void;
+  private width = 1;
+  private height = 1;
+  private dpr = 1;
+  private baseScale = 1;
+  private zoom = 1;
+  private targetZoom = 1;
+  private panX = 0;
+  private panY = 0;
+  private targetPanX = 0;
+  private targetPanY = 0;
+  private hovered: NexusNode | null = null;
+  private pressed: { x:number; y:number; panX:number; panY:number; moved:boolean; id:number } | null = null;
+  private lastFrame = 0;
+  private fps = 60;
+  private quality = 1;
+  private nextQualityCheck = 0;
+  private animationTime = 0;
+  private active = true;
+  private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  private selectedId: string | null = null;
+  speed = 1;
+  stats: NexusStats = { fps: 60, drawn: 0, total: 0, detail:"normal" };
+
+  constructor(canvas: HTMLCanvasElement, onSelect: (node: NexusNode) => void) {
+    const context = canvas.getContext("2d", { alpha:false });
+    if (!context) throw new Error("Canvas 2D unavailable");
+    this.canvas = canvas; this.context = context; this.onSelect = onSelect;
+    this.canvas.tabIndex = 0;
+    this.canvas.setAttribute("role","button");
+    this.canvas.setAttribute("aria-label","Интерактивная карта NEXUS: колесо — масштаб, перетаскивание — перемещение, Enter — карточка узла");
+    this.canvas.addEventListener("wheel",event => this.wheel(event), { passive:false });
+    this.canvas.addEventListener("pointerdown", event => this.down(event));
+    this.canvas.addEventListener("pointermove", event => this.move(event));
+    this.canvas.addEventListener("pointerup", event => this.up(event));
+    this.canvas.addEventListener("pointercancel", () => this.cancelDrag());
+    this.canvas.addEventListener("lostpointercapture", () => this.cancelDrag());
+    this.canvas.addEventListener("pointerleave", () => { this.hovered = null; this.canvas.style.cursor="grab"; });
+    this.canvas.addEventListener("keydown",event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        const node = this.hovered || this.layout.nodes.find(item => item.importance === 3) || this.layout.nodes[0];
+        if (node) this.select(node);
+      } else if (event.key === "+" || event.key === "=") {
+        this.targetZoom = Math.min(5, this.targetZoom * 1.2);
+      } else if (event.key === "-") {
+        this.targetZoom = Math.max(.55, this.targetZoom / 1.2);
+      }
+    });
+    const observer = new ResizeObserver(() => this.resize());
+    observer.observe(canvas);
+    window.addEventListener("resize", () => this.resize(),{passive:true});
+    document.addEventListener("visibilitychange", () => {
+      this.active = !document.hidden;
+      this.lastFrame = 0;
+      if (this.active) requestAnimationFrame(t=>this.frame(t));
+    });
+    this.resize();
+    requestAnimationFrame(t=>this.frame(t));
+  }
+  get nodes(): readonly NexusNode[] { return this.layout.nodes; }
+  get scale(): number { return this.zoom; }
+  get targetScale(): number { return this.targetZoom; }
+  resetView(): void {
+    this.targetZoom=1; this.targetPanX=0;this.targetPanY=0;
+  }
+  setCounts(counts: readonly number[]): void {
+    this.layout = buildNexusLayout(counts);
+    this.selectedId = null;
+  }
+  private resize():void {
+    const bounds=this.canvas.getBoundingClientRect();
+    this.width=Math.max(1,bounds.width); this.height=Math.max(1,bounds.height);
+    this.baseScale=Math.max(.12,Math.min(this.width,this.height)*.46/360);
+    this.dpr=Math.min(devicePixelRatio || 1,2);
+    this.canvas.width=Math.max(1,Math.round(this.width*this.dpr));
+    this.canvas.height=Math.max(1,Math.round(this.height*this.dpr));
+  }
+  private toWorld(x:number,y:number):{x:number;y:number} {
+    const s=this.baseScale*this.zoom;
+    return {x:(x-this.width/2-this.panX)/s,y:(y-this.height/2-this.panY)/s};
+  }
+  private toScreen(x:number,y:number):{x:number;y:number} {
+    const s=this.baseScale*this.zoom;
+    return {x:this.width/2+this.panX+x*s,y:this.height/2+this.panY+y*s};
+  }
+  private wheel(event:WheelEvent):void {
+    event.preventDefault();
+    const rect=this.canvas.getBoundingClientRect();
+    const x=event.clientX-rect.left, y=event.clientY-rect.top;
+    const old=this.targetZoom;
+    this.targetZoom=Math.max(.55,Math.min(5,old*Math.exp(-event.deltaY*.0011)));
+    const ratio=this.targetZoom/old;
+    this.targetPanX=x-this.width/2-(x-this.width/2-this.targetPanX)*ratio;
+    this.targetPanY=y-this.height/2-(y-this.height/2-this.targetPanY)*ratio;
+  }
+  private down(event:PointerEvent):void {
+    if(event.button!==0)return;
+    const rect=this.canvas.getBoundingClientRect();
+    this.pressed={x:event.clientX-rect.left,y:event.clientY-rect.top,
+      panX:this.targetPanX,panY:this.targetPanY,moved:false,id:event.pointerId};
+    this.canvas.setPointerCapture(event.pointerId);
+    this.canvas.style.cursor="grabbing";
+  }
+  private move(event:PointerEvent):void {
+    const rect=this.canvas.getBoundingClientRect();
+    const x=event.clientX-rect.left,y=event.clientY-rect.top;
+    if(this.pressed && this.pressed.id===event.pointerId) {
+      const dx=x-this.pressed.x,dy=y-this.pressed.y;
+      if(Math.hypot(dx,dy)>5)this.pressed.moved=true;
+      if(this.pressed.moved){
+        this.targetPanX=this.pressed.panX+dx;
+        this.targetPanY=this.pressed.panY+dy;
+        this.canvas.style.cursor="grabbing";
+        return;
+      }
+    }
+    this.hovered=this.hitTest(x,y);
+    this.canvas.style.cursor=this.hovered?"pointer":"grab";
+  }
+  private up(event:PointerEvent):void {
+    if(!this.pressed || this.pressed.id!==event.pointerId)return;
+    const rect=this.canvas.getBoundingClientRect();
+    const click=!this.pressed.moved;
+    this.pressed=null;
+    if(this.canvas.hasPointerCapture(event.pointerId))this.canvas.releasePointerCapture(event.pointerId);
+    this.canvas.style.cursor="grab";
+    if(click) {
+      const node=this.hitTest(event.clientX-rect.left,event.clientY-rect.top);
+      if(node)this.select(node);
+    }
+  }
+  private cancelDrag():void {
+    this.pressed=null;
+    this.canvas.style.cursor="grab";
+  }
+  private select(node:NexusNode):void {this.selectedId=node.id;this.onSelect(node);}
+  private hitTest(x:number,y:number):NexusNode|null {
+    const target=this.toWorld(x,y);
+    const tolerance=7/(this.baseScale*this.zoom);
+    let closest:NexusNode|null=null,dist=Infinity;
+    for(const node of this.layout.nodes){
+      const dx=node.x-target.x,dy=node.y-target.y;
+      const d=dx*dx+dy*dy;
+      const radius=Math.max(node.radius+3,tolerance);
+      if(d<=radius*radius && d<dist){closest=node;dist=d;}
+    }
+    return closest;
+  }
+  private circle(x:number,y:number,r:number,color:string,opacity=1):void {
+    const context=this.context;
+    context.beginPath(); context.arc(x,y,r,0,TWO_PI);
+    context.strokeStyle=color;context.globalAlpha=opacity;context.lineWidth=.75;context.stroke();
+    context.globalAlpha=1;
+  }
+  private frame(time:number):void {
+    if(!this.active)return;
+    const delta=this.lastFrame ? Math.min(100,time-this.lastFrame):16.667;
+    this.lastFrame=time;
+    this.fps=this.fps*.92+(1000/Math.max(delta,8))*.08;
+    if(time>this.nextQualityCheck){
+      this.quality=this.fps<34?.35:this.fps<48?.65:1;
+      this.nextQualityCheck=time+1000;
+    }
+    if(!this.reducedMotion)this.animationTime+=delta*.001*this.speed;
+    const smoothing=this.reducedMotion?1:.2;
+    this.zoom+=(this.targetZoom-this.zoom)*smoothing;
+    this.panX+=(this.targetPanX-this.panX)*smoothing;
+    this.panY+=(this.targetPanY-this.panY)*smoothing;
+    const ctx=this.context;
+    ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+    ctx.fillStyle="#000";ctx.fillRect(0,0,this.width,this.height);
+    const center=this.toScreen(0,0);
+    const scale=this.baseScale*this.zoom;
+    const maxR=365*scale;
+    if(center.x+maxR>0 && center.x-maxR<this.width &&
+       center.y+maxR>0 && center.y-maxR<this.height){
+      const gradient=ctx.createRadialGradient(center.x,center.y,0,center.x,center.y,Math.max(1,maxR*1.05));
+      gradient.addColorStop(0,"#071b1c");gradient.addColorStop(.55,"#030b0d");gradient.addColorStop(1,"#000");
+      ctx.fillStyle=gradient;
+      ctx.fillRect(Math.max(0,center.x-maxR*1.05),Math.max(0,center.y-maxR*1.05),
+        maxR*2.1,maxR*2.1);
+    }
+    ctx.save();
+    ctx.translate(center.x,center.y);
+    ctx.scale(scale,scale);
+    const viewLeft=(-center.x)/scale,viewTop=(-center.y)/scale;
+    const viewRight=(this.width-center.x)/scale,viewBottom=(this.height-center.y)/scale;
+    for (let i=0;i<this.layout.rings.length;i++){
+      const radius=this.layout.rings[i];
+      if(radius*scale<7)continue;
+      if(-radius>viewRight || radius<viewLeft || -radius>viewBottom || radius<viewTop)continue;
+      this.circle(0,0,radius,"#35696c",.13+(i%2)*.04);
+    }
+    for(let i=0;i<this.layout.sectors.length;i++){
+      const sector=this.layout.sectors[i];
+      const angle=(sector.start+sector.end)/2;
+      const x=Math.cos(angle)*71,y=Math.sin(angle)*71;
+      if(x>viewLeft-50&&x<viewRight+50&&y>viewTop-50&&y<viewBottom+50){
+        ctx.fillStyle=sector.color;ctx.globalAlpha=.75;
+        ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.font="10px Consolas, monospace";
+        ctx.fillText(sector.title,x,y,84);
+        ctx.globalAlpha=1;
+      }
+      // Sector boundaries are derived from data volume, not hard-coded 45-degree slices.
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(sector.start)*85,Math.sin(sector.start)*85);
+      ctx.lineTo(Math.cos(sector.start)*367,Math.sin(sector.start)*367);
+      ctx.strokeStyle=sector.color;ctx.globalAlpha=.13;ctx.lineWidth=.8;ctx.stroke();ctx.globalAlpha=1;
+    }
+    let drawn=0;
+    const lod = this.zoom<.95?3:this.zoom<1.45?2:1;
+    const detail = this.quality<.5?"low":this.quality<.9?"medium":"high";
+    for(const node of this.layout.nodes){
+      // View-frustum culling before any paths, gradients or style changes.
+      if(node.x+7<viewLeft || node.x-7>viewRight || node.y+7<viewTop || node.y-7>viewBottom)continue;
+      if(lod===3 && node.importance===1)continue;
+      if(lod===2 && node.importance===1 && node.ring%2===0)continue;
+      if(this.quality<.5 && node.importance===1 && node.ring%2===0)continue;
+      const color=this.layout.sectors[node.sector].color;
+      const selected=node.id===this.selectedId;
+      const hovered=node.id===this.hovered?.id;
+      const pulse=this.reducedMotion||this.quality<.9?0:Math.sin(this.animationTime*1.5+node.ring+node.sector)*.15;
+      const r=node.radius+(selected?2:hovered?1.4:0);
+      ctx.beginPath();
+      ctx.arc(node.x,node.y,r,0,TWO_PI);
+      ctx.fillStyle=color;ctx.globalAlpha=Math.max(.36,.62+pulse);
+      if(this.quality>.9&&(selected||hovered)) {
+        ctx.shadowBlur=12;ctx.shadowColor=color;
+      }
+      ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
+      if(node.importance>=2 && this.quality>.5 && this.zoom>1.15) this.circle(node.x,node.y,r+2,color,.42);
+      drawn++;
+    }
+    // Central system core.
+    if(viewLeft<22&&viewRight>-22&&viewTop<22&&viewBottom>-22){
+      ctx.beginPath();ctx.arc(0,0,23,0,TWO_PI);ctx.fillStyle="#081d1c";ctx.fill();
+      this.circle(0,0,23,"#7aded0",.9);
+      this.circle(0,0,14,"#56bbaa",.5);
+      ctx.fillStyle="#a7ecdf";ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="10px Consolas, monospace";ctx.fillText("八",0,0);
+    }
+    ctx.restore();
+    this.stats={fps:Math.round(this.fps),drawn,total:this.layout.nodes.length,detail};
+    this.canvas.dataset.rendered=String(drawn);
+    this.canvas.dataset.total=String(this.layout.nodes.length);
+    this.canvas.dataset.quality=detail;
+    this.canvas.dataset.zoom=this.zoom.toFixed(3);
+    this.canvas.dataset.panX=this.panX.toFixed(1);
+    requestAnimationFrame(t=>this.frame(t));
+  }
+}
