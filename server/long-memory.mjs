@@ -58,6 +58,7 @@ export function makeMemoryContext(query,{maxChars=2400,limit=7}={}){
   let remaining=clamp(maxChars,0,5000);
   const chosen=[];
   for(const item of records){
+    if(remaining<180)break;
     const excerpt=item.content.slice(0,Math.min(650,remaining-160));
     if(excerpt.length<20)break;
     const entry={source:item.sourceKind,id:item.sourceId,verified:item.verified,
