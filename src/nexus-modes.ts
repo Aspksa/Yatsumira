@@ -31,15 +31,46 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
   const positions=new Map<string,NexusPoint>();
   const groups:NexusGroup[]=[];
   if(mode==="rings"){
+    // Decorative markers keep the original reference composition.
     for(const node of layout.nodes)positions.set(node.id,{x:node.x,y:node.y});
-    // Each real topic gets an independent label near its outermost representative.
-    const seen=new Set<string>();
+    // Actual knowledge forms additional clustered blocks rather than scattered dots.
+    const bySector=Array.from({length:8},()=>new Map<string,NexusNode[]>());
     for(const node of layout.nodes){
       if(!node.actual)continue;
-      const key=node.sector+"|"+nodeGroup(node);
-      if(seen.has(key))continue;
-      seen.add(key);
-      groups.push({id:key,label:nodeGroup(node),sector:node.sector,count:layout.nodes.filter(n=>n.actual&&n.sector===node.sector&&nodeGroup(n)===nodeGroup(node)).length,x:node.x,y:node.y,radius:12});
+      const label=nodeGroup(node);
+      const existing=bySector[node.sector].get(label)??[];
+      existing.push(node);
+      bySector[node.sector].set(label,existing);
+    }
+    for(let sector=0;sector<8;sector++){
+      const entries=[...bySector[sector]].sort((a,b)=>a[0].localeCompare(b[0],"ru"));
+      const section=layout.sectors[sector];
+      const span=section.end-section.start;
+      const maxRadius=layout.rings[layout.rings.length-1]-34;
+      for(let groupIndex=0;groupIndex<entries.length;groupIndex++){
+        const [name,nodes]=entries[groupIndex];
+        const layers=Math.max(1,Math.ceil(entries.length/5));
+        const layer=Math.floor(groupIndex/5);
+        const row=groupIndex%5;
+        const columnCount=Math.min(5,entries.length-layer*5);
+        const column=Math.min(row,columnCount-1);
+        const angle=section.start+span*(column+.5)/columnCount;
+        const radius=Math.min(maxRadius,175+layer*54);
+        const ox=Math.cos(angle)*radius,oy=Math.sin(angle)*radius;
+        const cols=Math.max(1,Math.ceil(Math.sqrt(nodes.length)));
+        const gap=9.5;
+        nodes.forEach((node,i)=>{
+          const tx=(i%cols-(cols-1)/2)*gap;
+          const ty=(Math.floor(i/cols)-(Math.ceil(nodes.length/cols)-1)/2)*gap;
+          // Block aligns with its radial sector.
+          positions.set(node.id,{
+            x:ox+Math.cos(angle)*ty-Math.sin(angle)*tx,
+            y:oy+Math.sin(angle)*ty+Math.cos(angle)*tx
+          });
+        });
+        groups.push({id:sector+"|"+name,label:name,sector,count:nodes.length,
+          x:ox,y:oy,radius:Math.max(14,cols*gap*.7)});
+      }
     }
     return {positions,groups};
   }
