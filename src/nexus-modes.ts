@@ -1,0 +1,129 @@
+import type { NexusLayout, NexusNode } from "./nexus";
+
+export type NexusMode = "rings" | "circle" | "hex" | "force";
+export type NexusPoint = {x:number;y:number};
+export type NexusGroup = {id:string;label:string;sector:number;count:number;x:number;y:number;radius:number};
+export type NexusPlacement = {positions:Map<string,NexusPoint>;groups:NexusGroup[]};
+const TAU=Math.PI*2;
+const modes:readonly NexusMode[]=["rings","circle","hex","force"];
+export function isNexusMode(value:string):value is NexusMode{return modes.some(mode=>mode===value);}
+function hash(str:string):number{let a=2166136261;for(let i=0;i<str.length;i++){a^=str.charCodeAt(i);a=Math.imul(a,16777619);}return(a>>>0)/4294967296;}
+function anchor(sector:number,index:number,count:number,mode:NexusMode):NexusPoint {
+  if(mode==="hex"){
+    const a=(-90+sector*45)*Math.PI/180;
+    const radius=sector%2===0?190:235;
+    return {x:Math.cos(a)*radius,y:Math.sin(a)*radius};
+  }
+  if(mode==="circle"){
+    const a=(-90+(sector+index/(count+1))*45)*Math.PI/180;
+    return {x:Math.cos(a)*(210+index%2*40),y:Math.sin(a)*(210+index%2*40)};
+  }
+  const a=(-90+sector*45)*Math.PI/180;
+  return {x:Math.cos(a)*218,y:Math.sin(a)*218};
+}
+function nodeGroup(node:NexusNode):string {
+  if(node.actual) return node.group?.trim() || "Записи";
+  // Demo clusters imitate independent source projects in the supplied reference.
+  return ["Группа A","Группа B","Группа C","Группа D"][Math.floor(hash(node.id)*4)];
+}
+export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:NexusNode;b:NexusNode;strength:number}[]=[]):NexusPlacement {
+  const positions=new Map<string,NexusPoint>();
+  const groups:NexusGroup[]=[];
+  if(mode==="rings"){
+    for(const node of layout.nodes)positions.set(node.id,{x:node.x,y:node.y});
+    // Each real topic gets an independent label near its outermost representative.
+    const seen=new Set<string>();
+    for(const node of layout.nodes){
+      if(!node.actual)continue;
+      const key=node.sector+"|"+nodeGroup(node);
+      if(seen.has(key))continue;
+      seen.add(key);
+      groups.push({id:key,label:nodeGroup(node),sector:node.sector,count:layout.nodes.filter(n=>n.actual&&n.sector===node.sector&&nodeGroup(n)===nodeGroup(node)).length,x:node.x,y:node.y,radius:12});
+    }
+    return {positions,groups};
+  }
+  const buckets=new Map<string,NexusNode[]>();
+  for(const node of layout.nodes){
+    const name=nodeGroup(node);
+    const key=node.sector+"|"+name;
+    if(!buckets.has(key))buckets.set(key,[]);
+    buckets.get(key)!.push(node);
+  }
+  const perSector=Array.from({length:8},()=>[] as [string,NexusNode[]][]);
+  for(const entry of buckets){perSector[entry[1][0].sector].push(entry);}
+  for(let sector=0;sector<8;sector++){
+    const entries=perSector[sector].sort((a,b)=>a[0].localeCompare(b[0],"ru"));
+    for(let index=0;index<entries.length;index++){
+      const [key,nodes]=entries[index];
+      const origin=anchor(sector,index,entries.length,mode);
+      const name=key.substring(key.indexOf("|")+1);
+      const real=nodes.some(node=>node.actual);
+      const cellRadius=Math.max(25,Math.min(56,15+Math.sqrt(nodes.length)*3));
+      const center={...origin};
+      if(mode==="force"){
+        // Seeded, stable starting positions; force relaxation follows below.
+        const jitter=(hash(key)-.5)*60;
+        center.x+=Math.cos(sector*Math.PI/4)*jitter;
+        center.y+=Math.sin(sector*Math.PI/4)*jitter;
+      }
+      groups.push({id:key,label:name,sector,count:nodes.length,x:center.x,y:center.y,radius:cellRadius});
+      const cols=Math.ceil(Math.sqrt(nodes.length));
+      const spacing=Math.min(9,Math.max(3,cellRadius*1.55/Math.max(cols,1)));
+      nodes.forEach((node,j)=>{
+        const x=j%cols-(cols-1)/2,y=Math.floor(j/cols)-(Math.ceil(nodes.length/cols)-1)/2;
+        if(mode==="hex"){
+          const hx=(x+(Math.floor(j/cols)%2)*.5)*spacing;
+          const hy=y*spacing*.866;
+          positions.set(node.id,{x:center.x+hx,y:center.y+hy});
+        }else{
+          positions.set(node.id,{x:center.x+x*spacing,y:center.y+y*spacing});
+        }
+      });
+      if(!real && mode==="force"){} // Demo points remain identified as demos.
+    }
+  }
+  if(mode==="force"){
+    // Bounded group-level force layout: connected groups attract, unrelated groups repel.
+    const active=groups.slice(0,120);
+    const byNode=new Map<string,NexusGroup>();
+    for(const node of layout.nodes){
+      const key=node.sector+"|"+nodeGroup(node);
+      const group=active.find(g=>g.id===key);
+      if(group)byNode.set(node.id,group);
+    }
+    for(let iteration=0;iteration<35;iteration++){
+      const delta=new Map(active.map(g=>[g.id,{x:0,y:0}]));
+      for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
+        const a=active[i],b=active[j];
+        const dx=a.x-b.x,dy=a.y-b.y,d2=Math.max(200,dx*dx+dy*dy);
+        const force=Math.min(9,18000/d2);
+        const distance=Math.sqrt(d2);
+        delta.get(a.id)!.x+=dx/distance*force;delta.get(a.id)!.y+=dy/distance*force;
+        delta.get(b.id)!.x-=dx/distance*force;delta.get(b.id)!.y-=dy/distance*force;
+      }
+      for(const edge of links.slice(-800)){
+        const a=byNode.get(edge.a.id),b=byNode.get(edge.b.id);
+        if(!a||!b||a===b)continue;
+        const dx=b.x-a.x,dy=b.y-a.y;
+        delta.get(a.id)!.x+=dx*.0018;delta.get(a.id)!.y+=dy*.0018;
+        delta.get(b.id)!.x-=dx*.0018;delta.get(b.id)!.y-=dy*.0018;
+      }
+      for(const g of active){
+        const v=delta.get(g.id)!;
+        g.x+=Math.max(-12,Math.min(12,v.x));g.y+=Math.max(-12,Math.min(12,v.y));
+      }
+    }
+    // Preserve each node's internal offset after moving the cluster center.
+    for(const group of active){
+      const prefix=group.id+"";
+      const nodes=buckets.get(prefix)??[];
+      const original=anchor(group.sector,perSector[group.sector].findIndex(entry=>entry[0]===prefix),perSector[group.sector].length,mode);
+      const dx=group.x-original.x,dy=group.y-original.y;
+      for(const node of nodes){
+        const p=positions.get(node.id);
+        if(p){p.x+=dx;p.y+=dy;}
+      }
+    }
+  }
+  return {positions,groups};
+}
