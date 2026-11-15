@@ -96,6 +96,7 @@ export function supersedeMemory(oldId,newText){
         importance:old.importance,confidence:.65,verified:false});
       const date=new Date().toISOString();
       db.prepare("UPDATE memory_entries SET state='superseded',valid_to=?,updated_at=? WHERE id=?").run(date,date,oldId);
+      db.prepare("UPDATE memory_facts SET valid_to=? WHERE memory_id=? AND valid_to IS NULL").run(date,oldId);
       db.prepare("INSERT INTO memory_links(id,from_id,to_id,relation,score,created_at) VALUES(?,?,?,?,?,?)")
         .run(randomUUID(),result.id,oldId,"supersedes",1,date);
       db.exec("COMMIT");return {previous:oldId,...result};
@@ -104,9 +105,14 @@ export function supersedeMemory(oldId,newText){
 }
 export function retractMemory(id){
   return withCoreDatabase(db=>{
-    const date=new Date().toISOString();
-    const result=db.prepare("UPDATE memory_entries SET state='retracted',valid_to=?,updated_at=? WHERE id=? AND state='active'").run(date,date,id);
-    return {retracted:result.changes===1,id};
+    db.exec("BEGIN IMMEDIATE");
+    try{
+      const date=new Date().toISOString();
+      const result=db.prepare("UPDATE memory_entries SET state='retracted',valid_to=?,updated_at=? WHERE id=? AND state='active'").run(date,date,id);
+      if(result.changes)db.prepare("UPDATE memory_facts SET valid_to=? WHERE memory_id=? AND valid_to IS NULL").run(date,id);
+      db.exec("COMMIT");
+      return {retracted:result.changes===1,id};
+    }catch(error){db.exec("ROLLBACK");throw error;}
   });
 }
 export function memoryOverview(){
