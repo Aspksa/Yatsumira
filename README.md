@@ -17,6 +17,7 @@ Double-click `YATSUMIRA.bat`. The existing PowerShell launcher performs prefligh
 ```sh
 npm install
 npm run test:static
+node scripts/test-cloud.mjs
 npm run build
 npx playwright install chromium
 npm run test:browser

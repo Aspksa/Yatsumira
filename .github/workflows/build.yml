@@ -15,6 +15,7 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run test:static
+      - run: node scripts/test-cloud.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
