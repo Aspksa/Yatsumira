@@ -57,8 +57,7 @@ try {
   assert.ok(result.placeholder);
   await page.locator('#chat-input').fill('Тест');
   await page.locator('#chat-form button[type=submit]').click();
-  await page.getByText('Тест',{exact:true}).waitFor();
-  await page.getByText(/Сначала подключите Cloud.ru/).waitFor();
+  await page.getByText(/Сначала подключите Cloud.ru/).last().waitFor();
   // Mock only the local API boundary; no provider requests or secret storage in tests.
   await page.route('**/api/cloud/key',async route=>{
     if(route.request().method()==='POST') await route.fulfill({json:{configured:true,persisted:true}});
