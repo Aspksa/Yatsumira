@@ -7,7 +7,7 @@ import {mkdirSync,readFileSync} from "node:fs";
 import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 
-const SCHEMA=1;
+const SCHEMA=2;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -19,7 +19,17 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS conversations(id TEXT PRIMARY KEY,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,exchange_id TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('user','assistant')),content TEXT NOT NULL,model TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(conversation_id,exchange_id,role))",
 "CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id,created_at)",
-"CREATE TABLE IF NOT EXISTS core_events(id TEXT PRIMARY KEY,event_type TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL)"
+"CREATE TABLE IF NOT EXISTS core_events(id TEXT PRIMARY KEY,event_type TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_entries(id TEXT PRIMARY KEY,source_kind TEXT NOT NULL CHECK(source_kind IN ('knowledge','dialogue','manual')),source_id TEXT NOT NULL,conversation_id TEXT NOT NULL DEFAULT '',content TEXT NOT NULL,normalized TEXT NOT NULL,content_hash TEXT NOT NULL,importance INTEGER NOT NULL CHECK(importance BETWEEN 1 AND 5),confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),verified INTEGER NOT NULL CHECK(verified IN (0,1)),state TEXT NOT NULL DEFAULT 'active' CHECK(state IN ('active','superseded','retracted')),valid_from TEXT NOT NULL,valid_to TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(source_kind,source_id))",
+"CREATE INDEX IF NOT EXISTS idx_memory_source ON memory_entries(source_kind,source_id)",
+"CREATE INDEX IF NOT EXISTS idx_memory_active ON memory_entries(state,importance,created_at)",
+"CREATE INDEX IF NOT EXISTS idx_memory_hash ON memory_entries(content_hash)",
+"CREATE TABLE IF NOT EXISTS memory_links(id TEXT PRIMARY KEY,from_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,to_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,relation TEXT NOT NULL CHECK(relation IN ('related','supersedes','contradicts')),score REAL NOT NULL CHECK(score BETWEEN 0 AND 1),created_at TEXT NOT NULL,UNIQUE(from_id,to_id,relation))",
+"CREATE INDEX IF NOT EXISTS idx_memory_links_reverse ON memory_links(to_id)",
+"CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(content,content='memory_entries',content_rowid='rowid',tokenize='unicode61 remove_diacritics 2')",
+"CREATE TRIGGER IF NOT EXISTS memory_fts_insert AFTER INSERT ON memory_entries BEGIN INSERT INTO memory_fts(rowid,content) VALUES(new.rowid,new.content); END",
+"CREATE TRIGGER IF NOT EXISTS memory_fts_delete AFTER DELETE ON memory_entries BEGIN INSERT INTO memory_fts(memory_fts,rowid,content) VALUES('delete',old.rowid,old.content); END",
+"CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE OF content ON memory_entries BEGIN INSERT INTO memory_fts(memory_fts,rowid,content) VALUES('delete',old.rowid,old.content); INSERT INTO memory_fts(rowid,content) VALUES(new.rowid,new.content); END"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
@@ -81,7 +91,10 @@ export function withCoreDatabase(fn){
       for(const statement of sql)db.exec(statement);
       const version=Number(meta(db,"schema_version")||0);
       if(version>SCHEMA)throw new Error("Database schema newer than this build");
-      if(version<SCHEMA)setMeta(db,"schema_version",SCHEMA);
+      if(version<SCHEMA){
+        if(version>0)db.exec("INSERT INTO memory_fts(memory_fts) VALUES('rebuild')");
+        setMeta(db,"schema_version",SCHEMA);
+      }
       migrateLegacy(db);
     });
     return fn(db);
