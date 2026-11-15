@@ -14,7 +14,7 @@ export function memoryTokens(text) {
 export function memoryHash(text) {
   return createHash("sha256").update(normalizeMemory(text)).digest("hex");
 }
-const confidential=/\b(?:sk-[\w-]{12,}|Bearer\s+[\w.-]{12,}|(?:api[_ -]?key|парол[ьяе]|токен|секрет)[\s:=]{1,12}\S{8,})/iu;
+export const confidential=/\b(?:sk-[\w-]{12,}|Bearer\s+[\w.-]{12,}|(?:api[_ -]?key|парол[ьяе]|токен|секрет)[\s:=]{1,12}\S{8,})/iu;
 export function eligibleEpisode(text) {
   const value=String(text ?? "").trim();
   return value.length >= 12 && value.length <= 4000 && !confidential.test(value);
