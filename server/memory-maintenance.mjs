@@ -6,6 +6,7 @@ import {randomUUID} from "node:crypto";
 import {withCoreDatabase} from "./core-db.mjs";
 import {inspectSourceFacts,researchEntities} from "./memory-intelligence.mjs";
 import {normalizeMemory} from "./memory-store.mjs";
+import {indexUniversalGraph} from "./universal-memory-graph.mjs";
 
 const stamp=()=>new Date().toISOString();
 function loadJob(db,name){
@@ -106,7 +107,7 @@ export function recordRetrievalEvaluation(cases,retrieve){
   return report;
 }
 export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
-  const job=()=>{try{consolidateStep({batch:35});summarizeConversation({conversationId:"default",maxMessages:80});}catch(error){onError(error);}};
+  const job=()=>{try{consolidateStep({batch:35});indexUniversalGraph({batch:35});summarizeConversation({conversationId:"default",maxMessages:80});}catch(error){onError(error);}};
   const timer=setInterval(job,Math.max(60000,intervalMs));
   timer.unref?.();
   return ()=>clearInterval(timer);
