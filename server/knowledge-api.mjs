@@ -48,6 +48,10 @@ function tokens(text){
   return [...new Set((text.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(word=>!stopwords.has(word)).slice(0,120))];
 }
 function hash(text){return createHash("sha256").update(text).digest("hex");}
+function groupName(text){
+  const words=tokens(text).slice(0,2);
+  return words.length?words.join(" · ").slice(0,60):"Без темы";
+}
 function publicState(data){return {revision:data.revision,records:data.records,links:data.links};}
 export async function handleKnowledge(req,res,path){
   try{
@@ -69,7 +73,7 @@ export async function handleKnowledge(req,res,path){
       const record={
         id:randomUUID(), title:title||content.slice(0,75),content,sector,
         kind:"fact",importance:source==="note"?2:1,source,
-        verified:false,digest,createdAt:new Date().toISOString()
+        verified:false,digest,group:groupName(content),createdAt:new Date().toISOString()
       };
       const newWords=tokens(content);
       // Deterministic lexical relationships, not claims of semantic equivalence.
