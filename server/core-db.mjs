@@ -38,7 +38,9 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_conflicts(id TEXT PRIMARY KEY,left_fact TEXT NOT NULL REFERENCES memory_facts(id) ON DELETE CASCADE,right_fact TEXT NOT NULL REFERENCES memory_facts(id) ON DELETE CASCADE,reason TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'pending' CHECK(review_state IN ('pending','dismissed','resolved')),created_at TEXT NOT NULL,UNIQUE(left_fact,right_fact))",
 "CREATE TABLE IF NOT EXISTS memory_summaries(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,source_from TEXT NOT NULL,source_to TEXT NOT NULL,summary TEXT NOT NULL,source_count INTEGER NOT NULL,created_at TEXT NOT NULL,UNIQUE(conversation_id,source_from,source_to))",
 "CREATE TABLE IF NOT EXISTS memory_jobs(name TEXT PRIMARY KEY,cursor TEXT NOT NULL DEFAULT '',last_run TEXT,last_result TEXT NOT NULL DEFAULT '{}',updated_at TEXT NOT NULL)",
-"CREATE TABLE IF NOT EXISTS memory_evaluations(id TEXT PRIMARY KEY,query TEXT NOT NULL,expected_id TEXT NOT NULL,rank INTEGER,found INTEGER NOT NULL CHECK(found IN (0,1)),created_at TEXT NOT NULL)"
+"CREATE TABLE IF NOT EXISTS memory_evaluations(id TEXT PRIMARY KEY,query TEXT NOT NULL,expected_id TEXT NOT NULL,rank INTEGER,found INTEGER NOT NULL CHECK(found IN (0,1)),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_entities(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,entity_type TEXT NOT NULL,display_name TEXT NOT NULL,normalized_name TEXT NOT NULL,offset INTEGER NOT NULL,verified INTEGER NOT NULL DEFAULT 0,CHECK(verified IN (0,1)),UNIQUE(memory_id,entity_type,normalized_name))",
+"CREATE INDEX IF NOT EXISTS idx_memory_entity_name ON memory_entities(entity_type,normalized_name)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
