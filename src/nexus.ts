@@ -362,19 +362,29 @@ export class NexusView {
     ctx.scale(scale,scale);
     const viewLeft=(-center.x)/scale,viewTop=(-center.y)/scale;
     const viewRight=(this.width-center.x)/scale,viewBottom=(this.height-center.y)/scale;
-    drawNexusScaffold(ctx,this.layout,this.animationTime,this.quality,scale,{
-      left:viewLeft,top:viewTop,right:viewRight,bottom:viewBottom
-    });
+    if(this.mode==="rings"){
+      drawNexusScaffold(ctx,this.layout,this.animationTime,this.quality,scale,{
+        left:viewLeft,top:viewTop,right:viewRight,bottom:viewBottom
+      });
+    }
+    const colors=this.layout.sectors.map(sector=>sector.color);
+    drawNexusGroupShapes(ctx,this.mode,this.placement.groups,colors,this.zoom);
+    // Real knowledge links: emphasize edges connecting the selected node.
     if(this.quality>.35){
       const maxEdges=this.quality>.9?900:200;
       let count=0;
       for(const link of this.links){
         if(count++>=maxEdges)break;
-        if(Math.max(link.a.x,link.b.x)<viewLeft||Math.min(link.a.x,link.b.x)>viewRight||
-          Math.max(link.a.y,link.b.y)<viewTop||Math.min(link.a.y,link.b.y)>viewBottom)continue;
-        ctx.beginPath();ctx.moveTo(link.a.x,link.a.y);ctx.lineTo(link.b.x,link.b.y);
-        ctx.strokeStyle="#4bd4c4";ctx.globalAlpha=Math.min(.32,.09+link.strength*.035);
-        ctx.lineWidth=.7;ctx.stroke();
+        const a=this.position(link.a),b=this.position(link.b);
+        if(Math.max(a.x,b.x)<viewLeft||Math.min(a.x,b.x)>viewRight||
+          Math.max(a.y,b.y)<viewTop||Math.min(a.y,b.y)>viewBottom)continue;
+        const selected=!!this.selectedId&&(link.a.id===this.selectedId||link.b.id===this.selectedId);
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+        ctx.strokeStyle=selected?"#c3fff0":"#4bd4c4";
+        ctx.globalAlpha=selected?.93:Math.min(.25,.06+link.strength*.028);
+        ctx.lineWidth=selected?2:.7;
+        if(selected&&this.quality>.7){ctx.shadowColor="#6af5da";ctx.shadowBlur=8;}
+        ctx.stroke();ctx.shadowBlur=0;
       }
       ctx.globalAlpha=1;
     }
