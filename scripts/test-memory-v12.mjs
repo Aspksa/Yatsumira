@@ -8,6 +8,7 @@ import {assertGraphRelation} from "../server/universal-memory-graph.mjs";
 import {proposeLesson,reviewLesson,lessons,learnFromOutcomes,feedbackMemory,feedbackPriority,researchGaps,learningReport} from "../server/memory-v12-learning.mjs";
 import {graphLearningOverview,relationConfidence,analogyCandidates,ontologyCandidates,traceGraphAnomalies} from "../server/memory-v12-graph-learning.mjs";
 import {retrievalPlan,adaptiveRecall,retrievalProfileProposal,profileExperiment,approveRetrievalProfile,recallQuality} from "../server/memory-v12-retrieval.mjs";
+import {scheduleMemoryJob,runMemoryJob} from "../server/memory-v8-operations.mjs";
 const cwd=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-v12-"));
 try{
   process.chdir(root);
@@ -60,6 +61,11 @@ try{
   const passed=profileExperiment(cases,{baseline:bad,candidate:good});
   assert.equal(passed.accepted,true);
   assert.equal(approveRetrievalProfile(profile.name,{evaluation:passed,evidence:"Проверено на 2 контрольных вопросах"}).automaticallyApplied,false);
+  for(const kind of ["v12-experience","v12-graph-research","v12-learning-report"]){
+    assert.equal(scheduleMemoryJob(kind,{day:"2026-11-16"}).stored,true);
+    assert.equal(scheduleMemoryJob(kind,{day:"2026-11-16"}).stored,false);
+    assert.equal(runMemoryJob().state,"completed");
+  }
   assert.deepEqual(withCoreDatabase(db=>db.prepare("PRAGMA foreign_key_check").all()),[]);
   assert.equal(withCoreDatabase(db=>db.prepare("PRAGMA integrity_check").get().integrity_check),"ok");
   console.log("[YATSUMIRA CORE v12] evidence learning, feedback, graph, retrieval and quality gates: OK");
