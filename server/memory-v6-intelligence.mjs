@@ -25,9 +25,9 @@ const transaction=fn=>withCoreDatabase(db=>{
 export function planMemoryQuery(query,{effort="auto"}={}){
   const text=ensure(query,500);
   const tokens=memoryTokens(text);
-  const compound=/\b(?:и|или|а также|and|or|compare|сравни|между|почему|причин)/iu.test(text);
-  const temporal=/\b(?:когда|раньше|теперь|изменил|истори|date|before|after|202\d)/iu.test(text);
-  const graph=/\b(?:связан|зависит|отношен|через|влияет|graph|relationship)/iu.test(text);
+  const compound=/(?:^|[^\p{L}])(?:и|или|а также|and|or|compare|сравни|между|почему|причин)/iu.test(text);
+  const temporal=/(?:^|[^\p{L}])(?:когда|раньше|теперь|изменил|истори|date|before|after|202\d)/iu.test(text);
+  const graph=/(?:^|[^\p{L}])(?:связан|зависит|отношен|через|влияет|graph|relationship)/iu.test(text);
   const depth=effort==="deep"||effort==="auto"&&(compound||tokens.length>12)?3:1;
   const strategies=["fts5","subword",...(graph?["graph","pagerank"]:[]),...(temporal?["temporal"]:[])];
   return {query:text,depth,strategies,compound,temporal,graph,
