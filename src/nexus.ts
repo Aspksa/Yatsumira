@@ -406,7 +406,7 @@ export class NexusView {
       }
     }
     let drawn=0;
-    const lod = this.zoom<.95?3:this.zoom<1.45?2:1;
+    const lod = this.zoom<.70?3:this.zoom<.96?2:1;
     const detail = this.quality<.5?"low":this.quality<.9?"medium":"high";
     for(const node of this.layout.nodes){
       // View-frustum culling before any paths, gradients or style changes.
@@ -426,6 +426,22 @@ export class NexusView {
       ctx.strokeStyle=color;ctx.fillStyle=color;
       if((selected||hovered||node.actual) && this.quality>.65){
         ctx.shadowBlur=selected?14:7;ctx.shadowColor=color;
+      }
+      if(this.mode==="rings"&&!outer&&!node.actual&&this.quality>=.65&&this.zoom<2.3){
+        // Decorative microcells increase apparent density without creating false knowledge nodes.
+        // Coordinates are deterministic and radial, preserving the photographic reference's fan texture.
+        const angle=Math.atan2(ny,nx);
+        const radialX=Math.cos(angle),radialY=Math.sin(angle);
+        const tangentX=-radialY,tangentY=radialX;
+        ctx.globalAlpha=.35;
+        for(let cell=0;cell<6;cell++){
+          const along=(cell%3-1)*4.0;
+          const across=(Math.floor(cell/3)*2-1)*3.1;
+          const px=nx+radialX*along+tangentX*across;
+          const py=ny+radialY*along+tangentY*across;
+          ctx.fillRect(px-.68,py-.68,1.36,1.36);
+        }
+        ctx.globalAlpha=node.actual?1:Math.max(.34,.43+pulse);
       }
       if(outer){
         // Open-circle icons around the perimeter, as in the reference atlas.
