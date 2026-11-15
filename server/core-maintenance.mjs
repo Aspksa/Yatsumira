@@ -21,13 +21,16 @@ export function inspectCoreIntegrity() {
       knowledge: db.prepare("SELECT COUNT(*) AS n FROM knowledge").get().n,
       links: db.prepare("SELECT COUNT(*) AS n FROM knowledge_links").get().n,
       messages: db.prepare("SELECT COUNT(*) AS n FROM messages").get().n,
-      events: db.prepare("SELECT COUNT(*) AS n FROM core_events").get().n
+      events: db.prepare("SELECT COUNT(*) AS n FROM core_events").get().n,
+      memory: db.prepare("SELECT COUNT(*) AS n FROM memory_entries").get().n,
+      memoryIndexed: db.prepare("SELECT COUNT(*) AS n FROM memory_fts").get().n,
+      associations: db.prepare("SELECT COUNT(*) AS n FROM memory_links").get().n
     };
     const unpaired = db.prepare(
       "SELECT conversation_id,exchange_id,COUNT(*) AS n FROM messages GROUP BY conversation_id,exchange_id HAVING n<>2"
     ).all();
     const ok = integrity.length === 1 && integrity[0] === "ok" &&
-      foreignKeys.length === 0 && unpaired.length === 0;
+      foreignKeys.length === 0 && unpaired.length === 0 && counts.memory===counts.memoryIndexed;
     return {
       ok, integrity, foreignKeyViolations: foreignKeys.length,
       incompleteExchanges: unpaired.length, counts,
