@@ -46,9 +46,10 @@ try{
   const reload=await api("graph");
   assert.equal(reload.data.records.length,2);
   assert.equal(reload.data.revision,2);
-  assert.ok(existsSync(join(dir,".yatsumira","knowledge.json")));
-  const disk=JSON.parse(readFileSync(join(dir,".yatsumira","knowledge.json"),"utf8"));
-  assert.equal(disk.records.length,2);
+  assert.ok(existsSync(join(dir,".yatsumira","yatsumira.sqlite")));
+  assert.equal(existsSync(join(dir,".yatsumira","knowledge.json")),false,"New data uses SQLite, not JSON files");
+  const status=await api("graph");
+  assert.equal(status.data.records.length,2);
   console.log("[YATSUMIRA] Knowledge persistence, dedup, links, validation: OK");
 }finally{
   if(server)await server.close();
