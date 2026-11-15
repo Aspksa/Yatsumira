@@ -87,7 +87,7 @@ export function memoryLayers(){
     for(const row of rows){
       if(row.state!=="active"){counts.archive++;continue;}
       if(row.source_kind==="dialogue"){counts.episodic++;continue;}
-      if(/\b(?:порядок|процедур|инструкц|алгоритм|регламент|правило|шаг)\w*/iu.test(row.content)){
+      if(/(?:^|[^\p{L}])(?:порядок|процедур|инструкц|алгоритм|регламент|правило|шаг)[\p{L}]*/iu.test(row.content)){
         counts.procedural++;continue;
       }
       if(row.importance>=2){counts.semantic++;continue;}
