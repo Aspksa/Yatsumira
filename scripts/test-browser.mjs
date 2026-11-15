@@ -54,11 +54,16 @@ try {
       wide:custom.sectors[1].end-custom.sectors[1].start,
       narrow:custom.sectors[0].end-custom.sectors[0].start,
       customCount:custom.nodes.length,
-      grownCount:grown.nodes.length,grownRings:grown.rings.length
+      grownCount:grown.nodes.length,grownRings:grown.rings.length,
+      innerLast:layout.rings[5],outerFirst:layout.rings[6],
+      innerNodes:layout.nodes.filter(n=>n.ring<6).length,
+      outerNodes:layout.nodes.filter(n=>n.ring>=6).length
     };
   });
   assert.equal(geometry.rings,8);
   assert.equal(geometry.sectorCount,8);
+  assert.ok(geometry.outerFirst-geometry.innerLast>70,'Preserve reference-style open label band');
+  assert.ok(geometry.innerNodes>geometry.outerNodes*2,'Dense inner dot clusters and sparse outer circular icons');
   assert.ok(geometry.nodes>700,'Demo contains hundreds of nodes');
   assert.equal(geometry.overlap,false,'Markers must not overlap');
   assert.ok(geometry.wide>geometry.narrow*3,'Sector spans should reflect data volume');
