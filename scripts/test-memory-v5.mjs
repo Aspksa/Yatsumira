@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import {extractionConfigured,requestStructuredExtraction,extractMemoryUsingProvider} from "../server/memory-v5-provider.mjs";
+import {inspectMemoryV5,assertMemoryHealthy} from "../server/memory-v5-health.mjs";
+
 import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
@@ -100,6 +103,41 @@ try{
   assert.ok(parsed.relations[0].confidence<=.75);
   assert.equal((await extractKnowledgeWithModel({memoryId:mc,extractor:async()=>parsed})).stored,0);
   assert.throws(()=>validateExtractedKnowledge(null),/Invalid extraction/);
+  assert.equal(extractionConfigured(),false);
+  const oldVars={
+    url:process.env.YATSUMIRA_MEMORY_EXTRACT_URL,
+    key:process.env.YATSUMIRA_MEMORY_EXTRACT_KEY,
+    model:process.env.YATSUMIRA_MEMORY_EXTRACT_MODEL
+  };
+  try{
+    process.env.YATSUMIRA_MEMORY_EXTRACT_URL="https://extract.example/v1/chat/completions";
+    process.env.YATSUMIRA_MEMORY_EXTRACT_KEY="test-only-key";
+    process.env.YATSUMIRA_MEMORY_EXTRACT_MODEL="test-chat";
+    const fake=async(_url,options)=>{
+      assert.equal(options.headers.Authorization,"Bearer test-only-key");
+      const request=JSON.parse(options.body);
+      assert.equal(request.messages.at(-1).role,"user");
+      return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({
+        entities:[{name:"Робот Омега",type:"device"}],
+        relations:[{subject:"Робот Омега",predicate:"uses",object:"Платформа Аврора"}]
+      })}}]}),{status:200});
+    };
+    const payload=await requestStructuredExtraction({text:"Робот Омега использует Аврору"},{request:fake});
+    assert.equal(payload.relations.length,1);
+    const extracted=await extractMemoryUsingProvider(mc,{request:fake,dryRun:true});
+    assert.equal(extracted.stored,0);
+    assert.ok(extracted.proposals.relations.length>0);
+    assert.equal(extracted.proposals.verified,false);
+  }finally{
+    for(const [env,value] of [["YATSUMIRA_MEMORY_EXTRACT_URL",oldVars.url],["YATSUMIRA_MEMORY_EXTRACT_KEY",oldVars.key],["YATSUMIRA_MEMORY_EXTRACT_MODEL",oldVars.model]]){
+      if(value===undefined)delete process.env[env];else process.env[env]=value;
+    }
+  }
+  const health=inspectMemoryV5();
+  assert.equal(health.ok,true,JSON.stringify(health.errors));
+  assert.ok(health.structures.hyperedges>=1);
+  assert.equal(assertMemoryHealthy().ok,true);
+
   assert.equal(withCoreDatabase(db=>db.prepare("PRAGMA integrity_check").get().integrity_check),"ok");
   console.log("[YATSUMIRA CORE v5] universal aliases, decisions, task checkpoints, hyperedges, PageRank, evidence audit, extraction, incremental index: OK");
 }finally{
