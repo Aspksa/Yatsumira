@@ -47,12 +47,14 @@ try {
       if(overlap)break;
     }
     const custom=buildNexusLayout([16,160,16,16,16,16,16,16]);
+    const grown=buildNexusLayout([300,300,300,300,300,300,300,300]);
     return {
       rings:layout.rings.length,nodes:layout.nodes.length,
       sectorCount:layout.sectors.length,overlap,
       wide:custom.sectors[1].end-custom.sectors[1].start,
       narrow:custom.sectors[0].end-custom.sectors[0].start,
-      customCount:custom.nodes.length
+      customCount:custom.nodes.length,
+      grownCount:grown.nodes.length,grownRings:grown.rings.length
     };
   });
   assert.equal(geometry.rings,8);
@@ -61,6 +63,8 @@ try {
   assert.equal(geometry.overlap,false,'Markers must not overlap');
   assert.ok(geometry.wide>geometry.narrow*3,'Sector spans should reflect data volume');
   assert.equal(geometry.customCount,272,'Custom sector node count must be preserved');
+  assert.equal(geometry.grownCount,2400,'Growing layout must preserve all records');
+  assert.ok(geometry.grownRings>8,'Graph must gain outer rings as knowledge grows');
   const renderStart=await page.locator('#app').getAttribute('data-rendered');
   assert.ok(Number(renderStart)>0,'Canvas renders visible objects');
   const initialZoom=Number(await page.locator('#app').getAttribute('data-zoom'));
@@ -93,6 +97,8 @@ try {
   await page.locator('#knowledge-text').fill('Новая информация: договор поставки и граф знаний NEXUS');
   await page.locator('#knowledge-add').click();
   await page.getByText(/Новая информация сохранена/).waitFor();
+  await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeGrowth);
+  await page.reload({waitUntil:'networkidle'});
   await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeGrowth);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.shell > .topbar').count(),1);
