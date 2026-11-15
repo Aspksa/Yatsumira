@@ -1,3 +1,4 @@
+import { handleKnowledge } from "./knowledge-api.mjs";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -90,7 +91,7 @@ export function cloudApiPlugin() {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const pathname = (req.url || "").split("?")[0];
-        if (!pathname.startsWith("/api/cloud/")) return next();
+        if (!pathname.startsWith("/api/cloud/") && !pathname.startsWith("/api/knowledge/")) return next();
         const remote = req.socket.remoteAddress || "";
         if (!["127.0.0.1","::1","::ffff:127.0.0.1"].includes(remote)) return json(res,403,{error:"Local access only"});
         const origin = req.headers.origin;
@@ -102,6 +103,7 @@ export function cloudApiPlugin() {
           } catch { return json(res,403,{error:"Origin not allowed"}); }
         }
         try {
+          if (pathname.startsWith("/api/knowledge/")) return await handleKnowledge(req,res,pathname);
           if (pathname === "/api/cloud/config" && req.method === "GET") {
             return json(res,200,{configured:!!getKey(),persisted:existsSync(KEY_FILE),model:settings().model});
           }
