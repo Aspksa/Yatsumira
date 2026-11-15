@@ -64,3 +64,7 @@ New information is saved locally in `.yatsumira/knowledge.json`, which is exclud
 - Storage is bounded to 2,500 records. There is no semantic embedding, legal validation, document import or autonomous model training at this stage.
 
 The local endpoints are `GET /api/knowledge/graph` and `POST /api/knowledge/ingest`, protected by the same localhost and origin checks as the Cloud.ru proxy. Do not expose the development server on a network.
+
+## Layout matched to the supplied radial atlas reference
+
+The NEXUS visual design places a small concentric core in the middle, dense luminous rectangular data points on the inner six rings, a deliberately quiet caption-and-connection band, and outlined circular icons on the outer two orbital rings. Radial filaments, low-opacity sector boundaries and restrained colored labels reproduce the spatial hierarchy of the supplied reference while preserving YATSUMIRA's own categories and live data. No screenshot is used as a static background: the graph remains rendered through TypeScript Canvas, supports pan, zoom, node selection, adaptive LOD and growth when local knowledge is added.
