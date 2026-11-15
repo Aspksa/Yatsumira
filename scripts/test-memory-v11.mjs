@@ -7,7 +7,7 @@ import {createMemoryTask,updateMemoryTask,recordDecision} from "../server/memory
 import {
   storeMemoryContext,memoryRecord,memoryRevision,memoryHierarchy,memoryFamily,
   associateMemories,relatedMemories,goalMemory,goalProgress,goals,
-  preferenceMemory,reviewPreference,preferences,memoryAcrossSources
+  preferenceMemory,reviewPreference,preferences,memoryAcrossSources,longTermChatContext
 } from "../server/memory-v11-longterm.mjs";
 import {
   taskExperience,summarizeExperience,recordExperiencePattern,verifyExperiencePattern,
@@ -48,6 +48,8 @@ try{
   assert.equal(preferences().length,0);
   assert.equal(reviewPreference(p.id,{approved:true,evidence:"Пользователь указал предпочтение"}).state,"reviewed");
   assert.equal(preferences().length,1);
+  assert.ok(longTermChatContext("Тёмная тема").text.includes("предпочтение"));
+  assert.equal(longTermChatContext("неизвестный слон").entries,0);
   assert.equal(preferenceMemory({memoryId:ma,key:"Тёмная тема",value:"Да"}).stored,false);
   assert.ok(memoryAcrossSources("Проект Заря").results.some(x=>x.id===ma));
   const t1=createMemoryTask({memoryId:ma,title:"Проверка проекта",checkpoint:"Первый этап"});
