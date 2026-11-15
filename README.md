@@ -430,3 +430,37 @@ Local commands:
     node scripts/memory-v10.mjs provenance ASSERTION_ID
 
 Explicit review operations (`types-review`, `identity-merge`, `identity-split`) require evidence. No node is merged or split by the background scheduler. All automatic discoveries, cause proposals and anomalies remain review-only data. CI runs `scripts/test-memory-v10.mjs` on Linux and Windows alongside existing CORE and browser tests.
+
+## CORE v11 — long-term memory foundation (items 1–30)
+
+This is an additive, backend-only SQLite migration from CORE v10 to v11. No UI, CSS, NEXUS graph display, extra service or Docker/Ollama changes. The database still resides locally under `.yatsumira` in the project; source texts, IDs and citations remain intact.
+
+### Capabilities and exact limits
+
+- **1–6 — persistent/episodic/semantic/procedural/autobiographical/identity memory:** existing versioned `memory_entries`, conversation and message store, task outcomes and saved procedures remain active; v11 adds stable contextual and revision records. Memory is durable between restarts but depends on physical USB availability and backup integrity.
+- **7–10 — hierarchy, associations, provenance, revisions:** `memory_v11_hierarchy` stores cycle-protected parent relationships; `memory_v11_associations` stores candidate causal/duplicate/temporal links; original provenance stays in `memory_entries`; new `memory_v11_history` provides append-only source-cited revisions without rewriting originals.
+- **11–12 — context and conversation consolidation:** `memory_v11_context` preserves who/why/when/topic and source links, while the existing extractive conversation summaries plus the v11 episodic consolidation wrapper preserve their original memory IDs. Automatic long conversations are summarized only with source excerpts, not full neural understanding.
+- **13–16 — deduplication, entity resolution, temporal and causal binding:** existing duplicate and graph identity review machinery plus v11 candidate associations. Identity merging is reversible, timestamps must be explicit, causal candidates are never proof of causation.
+- **17–19 — cross-conversation, cross-document and multi-source fusion:** source-linked retrieval across locally indexed `memory_entries`, with existing v8 fusion and v11 semantic/episode consolidation. Nonindexed documents cannot be recalled; only ingested content is searchable.
+- **20 — understanding verification:** conservative source coverage / missing-term diagnostics. This is **not** a guarantee of correct understanding.
+- **21–24 — experience, success/failure, decisions:** v11 experience candidates are distilled from actual completed/cancelled recorded tasks. Existing decision history and v8 source-backed decision outcomes remain available. There is no unsupervised skill training.
+- **25–26 — goals and preferences:** source-cited long-term goals with outcomes; explicit, reviewable time-bounded preferences. Relevant active goals and **reviewed** preferences can be recalled in the existing chat context without any new UI. No automatic guessing about user preferences.
+- **27–29 — skills, reflection and generalization:** existing source-based procedures plus v11 candidate patterns (`success`, `failure`, `reflection`, `generalization`) with immutable source links; explicit approval needed before claims become reviewed. Existing maintenance produces bounded, idempotent candidate patterns, not autonomous factual learning.
+- **30 — knowledge gaps:** source-based question generation and candidate gap diagnostics using existing `memoryGaps`, not proof of absence.
+
+### Headless local commands
+
+    node scripts/memory-v11.mjs status
+    node scripts/memory-v11.mjs memory MEMORY_ID
+    node scripts/memory-v11.mjs goals
+    node scripts/memory-v11.mjs goal-add MEMORY_ID "Закончить проект"
+    node scripts/memory-v11.mjs preferences
+    node scripts/memory-v11.mjs preference-add MEMORY_ID "Тема интерфейса" "Тёмная"
+    node scripts/memory-v11.mjs preference-review PREFERENCE_ID approve "Проверено по исходному сообщению"
+    node scripts/memory-v11.mjs cross-source "Проект Заря"
+    node scripts/memory-v11.mjs experience-preview success
+    node scripts/memory-v11.mjs experience-consolidate
+    node scripts/memory-v11.mjs experience-patterns
+    node scripts/memory-v11.mjs verify-understanding "неизвестная тема"
+
+**Implementation limits:** neural semantic equivalence, guaranteed factuality, automatic preference recognition, robust entity disambiguation and reliable causality reasoning are **not** automatically achieved. The new long-term system deliberately separates recorded facts from candidate insights. CORE v11 tests run in `scripts/test-memory-v11.mjs` on Linux and Windows alongside previous suites; browser UI is unchanged.
