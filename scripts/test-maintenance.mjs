@@ -19,6 +19,8 @@ try {
   const checked = inspectCoreIntegrity();
   assert.equal(checked.ok,true);
   assert.equal(checked.counts.knowledge,1);
+  assert.equal(checked.counts.memory,checked.counts.memoryIndexed);
+  assert.ok(checked.counts.memory>=1);
   assert.equal(checked.counts.messages,2);
   assert.equal(checked.incompleteExchanges,0);
   assert.equal(checked.foreignKeyViolations,0);
