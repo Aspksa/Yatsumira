@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {agenticMemorySearch,sourceAwareOrder,debateEvidence} from "../server/memory-v8-retrieval.mjs";
 import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
@@ -55,6 +56,12 @@ try{
   addHyperedge({memoryId:ma,relationType:"collaboration",participants:[
     {nodeId:nodes[0].id,role:"source"},{nodeId:nodes[1].id,role:"target"}]});
   assert.ok(hypergraphPatterns().hyperedges.length>=1);
+  const search=await agenticMemorySearch("Сервис Альфа",{limit:6,maxRounds:2});
+  assert.ok(search.results.some(x=>x.id===ma));
+  assert.ok(search.rounds.length>=1);
+  assert.equal(typeof search.insufficient,"boolean");
+  assert.equal(sourceAwareOrder("Сервис Альфа",search.results,{limit:2}).length,2);
+  assert.equal(debateEvidence("Сервис Альфа").notAutonomousVerdict,true);
   const scheduled=scheduleMemoryJob("health");
   assert.equal(scheduled.stored,true);
   assert.equal(scheduleMemoryJob("health").stored,false);
