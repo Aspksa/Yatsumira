@@ -6,7 +6,7 @@
 import {withCoreDatabase} from "./core-db.mjs";
 import {confidential} from "./memory-store.mjs";
 import {recallMemory} from "./long-memory.mjs";
-import {storeEmbedding,vectorRecall,reciprocalFusion} from "./memory-vectors.mjs";
+import {storeEmbedding,vectorRecall,reciprocalFusion,rerankCandidates} from "./memory-vectors.mjs";
 function settings(){
   const url=process.env.YATSUMIRA_MEMORY_EMBED_URL||"";
   const key=process.env.YATSUMIRA_MEMORY_EMBED_KEY||"";
@@ -50,6 +50,42 @@ export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
   }
   return {enabled:true,indexed,skipped,remainingUnknown:true,model:config.model};
 }
+function rerankerSettings(){
+  const url=process.env.YATSUMIRA_MEMORY_RERANK_URL||"";
+  const key=process.env.YATSUMIRA_MEMORY_RERANK_KEY||"";
+  const model=process.env.YATSUMIRA_MEMORY_RERANK_MODEL||"";
+  if(!url||!key||!model)return null;
+  const parsed=new URL(url);
+  if(parsed.protocol!=="https:" && !(parsed.protocol==="http:"&&["localhost","127.0.0.1"].includes(parsed.hostname)))
+    throw Error("Reranker endpoint must use HTTPS or local loopback HTTP");
+  if(parsed.username||parsed.password)throw Error("Reranker URL must not contain credentials");
+  return {url:parsed.href,key,model};
+}
+export async function rerankWithProvider(query,items,{request=fetch}={}){
+  const config=rerankerSettings();
+  if(!config||!items.length)return items;
+  return rerankCandidates(query,items,async(q,docs)=>{
+    const response=await request(config.url,{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+config.key,"Content-Type":"application/json"},
+      body:JSON.stringify({model:config.model,query:q,documents:docs}),
+      signal:AbortSignal.timeout(20000)
+    });
+    if(!response.ok)throw Error("Reranker provider HTTP "+response.status);
+    const json=await response.json();
+    const results=json?.results;
+    if(!Array.isArray(results)||results.length!==docs.length)throw Error("Invalid reranker results");
+    const scores=new Array(docs.length).fill(null);
+    for(const row of results){
+      const index=row?.index;
+      const score=row?.relevance_score??row?.score;
+      if(!Number.isInteger(index)||index<0||index>=docs.length||!Number.isFinite(score))throw Error("Invalid reranker score");
+      scores[index]=score;
+    }
+    if(scores.some(x=>x===null))throw Error("Incomplete reranker response");
+    return scores;
+  });
+}
 export async function hybridRecall(query,{limit=8,request=fetch}={}){
   const lexical=recallMemory(query,{limit:Math.min(30,Math.max(limit*3,12))});
   if(!settings())return {mode:"lexical-subword",results:lexical.slice(0,limit)};
@@ -58,7 +94,13 @@ export async function hybridRecall(query,{limit=8,request=fetch}={}){
     const semantic=vectorRecall(embedding.vector,{model:embedding.model,limit:Math.min(50,limit*3)});
     // All results must obey the same secret filter as lexical recall.
     const filtered=semantic.filter(row=>!confidential.test(row.content));
-    return {mode:"hybrid-neural",results:reciprocalFusion(lexical,filtered,{limit}),model:embedding.model};
+    const fusion=reciprocalFusion(lexical,filtered,{limit:Math.max(12,limit)});
+    let ranked=fusion;
+    let reranked=false;
+    try{
+      if(rerankerSettings()){ranked=await rerankWithProvider(query,fusion,{request});reranked=true;}
+    }catch{/* No reranker may block the user chat. Keep the hybrid results. */}
+    return {mode:"hybrid-neural",results:ranked.slice(0,limit),model:embedding.model,reranked};
   }catch{
     // Provider outages cannot stop local memory or the normal chat response.
     return {mode:"lexical-fallback",results:lexical.slice(0,limit)};
