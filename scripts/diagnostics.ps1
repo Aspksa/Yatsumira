@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 
 function New-YatsumiraState([string]$Root) {
     $data = Join-Path $Root '.yatsumira'
-    if (-not (Test-Path -LiteralPath $data)) { New-Item -ItemType Directory -Path $data -Force | Out-Null }
+    if (-not (Test-Path -LiteralPath $data)) { [IO.Directory]::CreateDirectory($data) | Out-Null }
     return @{ Root = $Root; Directory = $data; Checks = [System.Collections.ArrayList]::new(); Issues = [System.Collections.ArrayList]::new(); Started = (Get-Date).ToUniversalTime().ToString('o') }
 }
 
@@ -56,7 +56,7 @@ function Assert-YatsumiraPreflight($State) {
     try {
         $special = Join-Path $State.Directory ('special & % ! ^ ( ) ' + [guid]::NewGuid().ToString('N'))
         try {
-            New-Item -ItemType Directory -LiteralPath $special -Force | Out-Null
+            [IO.Directory]::CreateDirectory($special) | Out-Null
             [IO.File]::WriteAllText((Join-Path $special 'test file.txt'), 'ok')
             $ok = [IO.File]::ReadAllText((Join-Path $special 'test file.txt')) -eq 'ok'
             Add-YatsumiraCheck $State 'special-path-characters' $ok 'File IO with spaces, &, %, !, ^, parentheses' $true 'filesystem'
