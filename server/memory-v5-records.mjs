@@ -29,7 +29,7 @@ export function detectIntent(text){
 }
 export function detectReferences(text){
   const s=String(text||"");
-  return [...s.matchAll(/(?:^|[\s,])(?:он|она|оно|они|это|тот|та|этот|those|it|they)(?=[\s,.!?]|$)/giu)]
+  return [...s.matchAll(/(?:^|[\s,])(?:он|она|оно|они|его|ее|её|их|это|тот|та|этот|those|it|they)(?=[\s,.!?]|$)/giu)]
     .slice(0,16).map(m=>({pronoun:m[0].trim(),offset:m.index,requiresContext:true}));
 }
 export function multilingualKeywords(text){
