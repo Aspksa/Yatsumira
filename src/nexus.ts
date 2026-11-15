@@ -47,25 +47,30 @@ export function buildNexusLayout(counts: readonly number[] = CATALOG.map(item =>
     cursor += span + padding;
     return { title: item.title, color: item.color, count: safeCounts[i], start, end: cursor - padding / 2 };
   });
+  // Add outer rings only when newly learned records exceed available orbital capacity.
+  const rings=[...RINGS];
+  while(sectors.some(sector=>sector.count>rings.reduce((total,r)=>total+Math.max(0,Math.floor(r*(sector.end-sector.start)/11.5)),0)) && rings.length<96) {
+    rings.push(rings[rings.length-1]+38);
+  }
   const nodes: NexusNode[] = [];
   for (let sectorIndex = 0; sectorIndex < sectors.length; sectorIndex++) {
     const sector = sectors[sectorIndex];
     const span = sector.end - sector.start;
-    const bins: { count: number; radius: number }[] = RINGS.map((radius, i) => ({
+    const bins: { count: number; radius: number }[] = rings.map((radius) => ({
       count: 0, radius
     }));
     // Guarantee at least 11.5 world units between nodes, including outer icon diameter.
-    const capacities = RINGS.map(r => Math.max(0, Math.floor(r * span / 11.5)));
+    const capacities = rings.map(r => Math.max(0, Math.floor(r * span / 11.5)));
     let remaining = sector.count;
     let next = 0;
     while (remaining > 0) {
       let found = false;
-      for (let attempt = 0; attempt < RINGS.length; attempt++) {
-        const ringIndex = (next + attempt) % RINGS.length;
+      for (let attempt = 0; attempt < rings.length; attempt++) {
+        const ringIndex = (next + attempt) % rings.length;
         if (bins[ringIndex].count < capacities[ringIndex]) {
           bins[ringIndex].count++;
           remaining--;
-          next = (ringIndex + 1) % RINGS.length;
+          next = (ringIndex + 1) % rings.length;
           found = true;
           break;
         }
@@ -92,7 +97,7 @@ export function buildNexusLayout(counts: readonly number[] = CATALOG.map(item =>
       }
     }
   }
-  return { nodes, sectors, rings: [...RINGS] };
+  return { nodes, sectors, rings };
 }
 
 export class NexusView {
@@ -192,7 +197,7 @@ export class NexusView {
         mapping.set(record.id,location);
       }
     }
-    this.layout=layout;this.realNodes=[...mapping.values()];
+    this.layout=layout;this.resize();this.realNodes=[...mapping.values()];
     this.links=links.slice(-4000).flatMap(link=>{
       const a=mapping.get(link.source),b=mapping.get(link.target);
       return a&&b?[{a,b,strength:link.strength}]:[];
@@ -202,7 +207,7 @@ export class NexusView {
   private resize():void {
     const bounds=this.canvas.getBoundingClientRect();
     this.width=Math.max(1,bounds.width); this.height=Math.max(1,bounds.height);
-    this.baseScale=Math.max(.12,Math.min(this.width,this.height)*.46/360);
+    this.baseScale=Math.max(.025,Math.min(this.width,this.height)*.46/Math.max(360,this.layout.rings[this.layout.rings.length-1]));
     this.dpr=Math.min(devicePixelRatio || 1,2);
     this.canvas.width=Math.max(1,Math.round(this.width*this.dpr));
     this.canvas.height=Math.max(1,Math.round(this.height*this.dpr));
@@ -303,7 +308,7 @@ export class NexusView {
     ctx.fillStyle="#000";ctx.fillRect(0,0,this.width,this.height);
     const center=this.toScreen(0,0);
     const scale=this.baseScale*this.zoom;
-    const maxR=365*scale;
+    const maxR=(this.layout.rings[this.layout.rings.length-1]+5)*scale;
     if(center.x+maxR>0 && center.x-maxR<this.width &&
        center.y+maxR>0 && center.y-maxR<this.height){
       const gradient=ctx.createRadialGradient(center.x,center.y,0,center.x,center.y,Math.max(1,maxR*1.05));
@@ -337,7 +342,7 @@ export class NexusView {
       // Sector boundaries are derived from data volume, not hard-coded 45-degree slices.
       ctx.beginPath();
       ctx.moveTo(Math.cos(sector.start)*85,Math.sin(sector.start)*85);
-      ctx.lineTo(Math.cos(sector.start)*367,Math.sin(sector.start)*367);
+      ctx.lineTo(Math.cos(sector.start)*(this.layout.rings[this.layout.rings.length-1]+7),Math.sin(sector.start)*(this.layout.rings[this.layout.rings.length-1]+7));
       ctx.strokeStyle=sector.color;ctx.globalAlpha=.13;ctx.lineWidth=.8;ctx.stroke();ctx.globalAlpha=1;
     }
     if(this.quality>.35){
