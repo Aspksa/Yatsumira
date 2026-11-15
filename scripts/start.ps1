@@ -104,7 +104,7 @@ try {
     Add-YatsumiraCheck $state 'port-selection' $true "Selected port $port"
     [void](Save-YatsumiraReport $state 'running' $port)
     Write-Host "[YATSUMIRA] Starting local website (port $port)"
-    & npm.cmd run dev -- --host 127.0.0.1 --port $port --open
+    & node.exe $vite --host 127.0.0.1 --port $port --open
     if ($LASTEXITCODE -ne 0) { Fail-Yatsumira 50 'runtime' "Vite exited with code $LASTEXITCODE" }
     exit 0
 } catch {

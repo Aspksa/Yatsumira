@@ -34,8 +34,9 @@ jobs:
           node-version: '22'
       - name: Test clean npm install in special-character directory
         run: npm install --no-audit --no-fund
-      - run: npm run test:static
-      - run: npm run build
+      - run: node --test scripts/test-project.mjs
+      - run: node node_modules/typescript/bin/tsc --noEmit
+      - run: node node_modules/vite/bin/vite.js build
       - name: Test Windows preflight, UTF-8, file permissions, paths and report
         run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-preflight.ps1
       - name: Validate report

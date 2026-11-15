@@ -22,6 +22,6 @@ npm run test:browser
 
 On Windows, run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-preflight.ps1` to test filesystem, PowerShell, UTF-8 Cyrillic, disk space, permissions, temp folders, special characters, and config checks.
 
-GitHub Actions runs a clean npm install in a Windows directory containing spaces, &, %, !, ^ and parentheses, plus static and production-build checks. The Linux job runs headless Chromium to check HTTP, Canvas, pure-black styles, and browser errors.
+GitHub Actions runs a clean npm install in a Windows directory containing spaces, &, %, !, ^ and parentheses. Windows build tools are launched via node.exe directly instead of npm run because npm lifecycle command shims can misparse special path characters. The Linux job runs headless Chromium to check HTTP, Canvas, pure-black styles, and browser errors.
 
 The project has no AI functions or graphical UI yet. Keep the page empty.
