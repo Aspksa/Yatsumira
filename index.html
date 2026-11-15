@@ -8,14 +8,22 @@
   </head>
   <body>
     <div class="shell">
-      <section class="visual-panel" aria-label="Визуализация системы">
-        <header class="topbar">
-          <div class="brand"><span class="brand-mark">✦</span> YATSUMIRA <span class="brand-sub">/ NEXUS</span></div>
+      <header class="topbar">
+          <div class="header-start"><button type="button" id="settings-toggle" class="settings-trigger" aria-expanded="false" aria-controls="settings-panel">⚙ Настройки</button><div class="brand"><span class="brand-mark">✦</span> YATSUMIRA <span class="brand-sub">/ NEXUS</span></div>
           <span class="system-state"><span class="state-dot"></span> INTERFACE ONLINE</span>
         </header>
+      <section id="settings-panel" class="settings-panel" aria-label="Настройки визуализации" hidden>
+        <div class="settings-title">НАСТРОЙКИ ВИЗУАЛИЗАЦИИ</div>
+        <label for="animation-speed">Скорость анимации <output id="speed-value">100%</output></label>
+        <input id="animation-speed" type="range" min="0" max="200" value="100" step="10"/>
+        <label for="chat-width">Ширина чата <output id="width-value">35%</output></label>
+        <input id="chat-width" type="range" min="25" max="55" value="35"/>
+        <div class="setting-actions"><button type="button" id="reset-view">Сбросить масштаб</button><button type="button" id="reset-settings">По умолчанию</button></div>
+      </section>
+      <section class="visual-panel" aria-label="Визуализация системы">
         <div class="visual-area">
           <canvas id="app" aria-label="Интерактивная круговая визуализация узлов Yatsumira"></canvas>
-          <div class="orbit-caption">SYSTEM NEXUS <span>·</span> v0.1</div>
+          <div class="orbit-caption">SYSTEM NEXUS <span>·</span> v0.1 · КОЛЕСО МЫШИ — МАСШТАБ</div>
         </div>
         <footer class="bottom-bar"><span>◈ &nbsp; 08 TAILS · 08 DOMAINS</span><span>CANVAS ENGINE <strong>ACTIVE</strong></span></footer>
       </section>
