@@ -1,4 +1,4 @@
-name: Web build
+name: YATSUMIRA checks
 
 on:
   push:
@@ -6,16 +6,40 @@ on:
   pull_request:
 
 jobs:
-  build:
+  web:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install dependencies
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:static
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+
+  windows-clean-install:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: Yatsu & % ! ^ ( ) space
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Yatsu & % ! ^ ( ) space
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test clean npm install in special-character directory
         run: npm install --no-audit --no-fund
-      - name: TypeScript check and Vite build
-        run: npm run build
+      - run: npm run test:static
+      - run: npm run build
+      - name: Test Windows preflight, UTF-8, file permissions, paths and report
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-preflight.ps1
+      - name: Validate report
+        run: |
+          $report = Get-Content -LiteralPath .yatsumira/report.json -Raw | ConvertFrom-Json
+          if (-not $report.success) { throw 'Windows preflight failed' }
+          if (-not $report.checks) { throw 'Missing diagnostic checks' }
