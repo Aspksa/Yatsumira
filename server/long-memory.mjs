@@ -1,6 +1,6 @@
 /** Hybrid local long-term retrieval; FTS5, morphological prefixes and subword similarity. */
 import { withCoreDatabase } from "./core-db.mjs";
-import { memoryTokens, memoryHash, indexMemory } from "./memory-store.mjs";
+import { memoryTokens, memoryHash, indexMemory, confidential } from "./memory-store.mjs";
 import { randomUUID } from "node:crypto";
 const clamp=(n,lo,hi)=>Math.min(hi,Math.max(lo,n));
 function grams(text){
@@ -31,7 +31,7 @@ function candidates(db,query){
 }
 function ranked(db,query,limit){
   const now=Date.now(),seen=new Set(),words=memoryTokens(query);
-  return candidates(db,query).map(row=>{
+  return candidates(db,query).filter(row=>!confidential.test(row.content)).map(row=>{
     const sim=similarity(query,row.normalized);
     const have=new Set(memoryTokens(row.normalized));
     const prefix=words.filter(w=>[...have].some(t=>t.startsWith(w.slice(0,Math.min(5,w.length)))||
