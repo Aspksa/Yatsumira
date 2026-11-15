@@ -33,6 +33,9 @@ try {
   assert.equal(result.canvasContext,true);
   assert.equal(result.rootBackground,'rgb(0, 0, 0)');
   assert.equal(result.chat,true);
+  assert.equal(await page.locator('.chat-panel').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
+  assert.equal(await page.locator('.chat-body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
+  assert.equal(await page.locator('.cloud-section').count(),1);
   assert.equal(await page.locator('.shell > .topbar').count(),1);
   await page.locator('#settings-toggle').click();
   assert.equal(await page.locator('#settings-panel').isVisible(),true);
@@ -55,7 +58,26 @@ try {
   await page.locator('#chat-input').fill('Тест');
   await page.locator('#chat-form button[type=submit]').click();
   await page.getByText('Тест',{exact:true}).waitFor();
-  await page.getByText(/демонстрационном режиме/).waitFor();
+  await page.getByText(/Сначала подключите Cloud.ru/).waitFor();
+  // Mock only the local API boundary; no provider requests or secret storage in tests.
+  await page.route('**/api/cloud/key',async route=>{
+    if(route.request().method()==='POST') await route.fulfill({json:{configured:true,persisted:true}});
+    else await route.fulfill({json:{configured:false}});
+  });
+  await page.route('**/api/cloud/models',route=>route.fulfill({json:{models:['test/first','test/second'],selected:''}}));
+  await page.route('**/api/cloud/model',route=>route.fulfill({json:{model:'test/first'}}));
+  await page.route('**/api/cloud/chat',route=>route.fulfill({json:{answer:'Ответ тестовой модели',model:'test/first'}}));
+  await page.locator('#settings-toggle').click();
+  await page.locator('#cloud-key').fill('example-fake-key');
+  await page.locator('#cloud-save').click();
+  await page.getByText(/Доступно моделей: 2/).waitFor();
+  assert.equal(await page.locator('#cloud-key').inputValue(),'');
+  await page.locator('#cloud-model').selectOption('test/first');
+  await page.getByText(/Модель выбрана/).waitFor();
+  await page.keyboard.press('Escape');
+  await page.locator('#chat-input').fill('Привет, тест');
+  await page.locator('#chat-form button[type=submit]').click();
+  await page.getByText('Ответ тестовой модели').waitFor();
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(100);
   assert.equal(await page.locator('.chat-panel').count(),1);
