@@ -247,3 +247,47 @@ YATSUMIRA's memory is domain-neutral: project, person, place, tool, car, documen
 Event dates are explicit and parsed as ISO UTC. Generic relations extracted automatically use deliberately conservative quotation patterns (e.g. `«Система Альта» использует «База Лира»`). Arbitrary relations and events can be inserted through the local CLI with existing memory provenance. Domain-agnostic does not mean perfect extraction from arbitrary natural language; this is a reliable foundation for later LLM-based extraction and evaluation.
 
 Run `node scripts/test-universal-memory.mjs` to test the graph, multi-hop paths, communities, source-backed claims, temporal filtering, duplicate safety, feedback and offline recall. GitHub Actions executes it on Linux and Windows along with CORE v1–v3 tests.
+
+## CORE v5 — selected universal memory upgrades (backend only)
+
+The CORE v5 SQLite migration keeps existing local memory, knowledge graph, messages, source files and front-end intact. No interface changes or Docker/Ollama dependency. All source-backed claims remain candidates until reviewed.
+
+**Selected numbered roadmap items implemented as infrastructure or conservative heuristics:**
+
+- **1**: Opt-in OpenAI-compatible JSON extraction adapter (`memory-v5-provider.mjs`); never auto-transmits documents; all extracted relations require original memory IDs and remain unverified candidates.
+- **2–4**: Intent classification, bounded context interpretation and pronoun/coreference suggestions without silently modifying user text.
+- **5**: Source-backed alternate graph names with explicit approval required before alias resolution.
+- **6–8**: Explicitly stated causal candidates, uncertainty markers, and a small offline Russian/English lexical alias layer. These are not general causal reasoning or automatic multilingual translation.
+- **9–11**: Hybrid text/graph/vector search, source-weighted Personalized PageRank, confidence-weighted links and feedback-aware ranking.
+- **12**: Source-attributed hyperedges connecting 2–15 participants to a multi-role event or relationship.
+- **13–15**: Typed open-ended hierarchy relations, connected-component topic communities and graph paths that reveal potentially unexpected associations. Connected components are not Louvain clusters.
+- **16**: Every graph assertion, temporal event and hyperedge references a source memory; audit source IDs and retrieval evidence.
+- **18**: Preserve existing bounded background consolidation, deduplication and source-based summaries; no deletion or silent fact rewriting.
+- **22–24**: Decisions with rationale, incomplete-task checkpoints and verified working-memory candidates; archived and retracted records stay out of active recall.
+- **25–27**: Evidence overlap diagnostics, explicit unsupported-answer status and provenance-aware conflict candidates; neither lexical overlap nor LLM confidence proves factual truth.
+- **29**: Retrieval completeness check detects missing query terms and recommends retrying search instead of fabricating missing information.
+- **34**: Source digest checkpoints detect changes for incremental re-indexing, without wiping prior source memories.
+- **37**: SQLite integrity, foreign keys, FTS count, source integrity, checkpoint and schema diagnostics. Database corruption must be handled with verified backups.
+
+**Local commands (no new web UI):**
+
+    node scripts/memory-v5.mjs health
+    node scripts/memory-v5.mjs rank "Платформа Аврора"
+    node scripts/memory-v5.mjs recall "Что связано с проектом?"
+    node scripts/memory-v5.mjs topics
+    node scripts/memory-v5.mjs graph-quality
+    node scripts/memory-v5.mjs interpret "Она использует его?"
+    node scripts/memory-v5.mjs tasks
+    node scripts/memory-v5.mjs decisions
+    node scripts/memory-v5.mjs coverage "Что известно о системе?"
+    node scripts/memory-v5.mjs index-check "file:example.txt" "Current text"
+
+**Neural extraction (opt in only):** set `YATSUMIRA_MEMORY_EXTRACT_URL` to a documented compatible HTTPS `/chat/completions` endpoint, `YATSUMIRA_MEMORY_EXTRACT_KEY` to its secret and `YATSUMIRA_MEMORY_EXTRACT_MODEL` to an actual model identifier. On localhost HTTP is allowed; all other URLs must use HTTPS. Default extraction is dry-run:
+
+    node scripts/memory-v5.mjs extract MEMORY_ID
+
+To write extracted, unverified candidate relations to SQLite, explicitly add `--commit`. Nothing is sent to any model in background by this module. Cloud.ru's existing chat API settings are separate; no unsupported endpoint is assumed or secret written to the database. Avoid sending private company documents to a provider unless its data terms permit it.
+
+**Boundaries:** Neural extraction, reliable pronoun resolution, multilingual semantics, causes/effects and hallucination detection cannot be guaranteed without verified models and reliable source evidence. The new routines are auditable conservative steps, not artificial general intelligence or fully autonomous learning.
+
+Tests: `node scripts/test-memory-v5.mjs` on Windows and Linux, plus the existing CORE compatibility, migration and browser checks.
