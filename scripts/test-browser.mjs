@@ -33,6 +33,57 @@ try {
   assert.equal(result.canvasContext,true);
   assert.equal(result.rootBackground,'rgb(0, 0, 0)');
   assert.equal(result.chat,true);
+  // Layout invariants: eight rings, no overlapping markers and weighted sectors.
+  const geometry=await page.evaluate(async()=>{
+    const {buildNexusLayout}=await import('/src/nexus.ts');
+    const layout=buildNexusLayout();
+    let overlap=false;
+    for(let i=0;i<layout.nodes.length;i++){
+      for(let j=i+1;j<layout.nodes.length;j++){
+        const a=layout.nodes[i],b=layout.nodes[j];
+        const dx=a.x-b.x,dy=a.y-b.y;
+        if(dx*dx+dy*dy<(a.radius+b.radius+1)**2){overlap=true;break;}
+      }
+      if(overlap)break;
+    }
+    const custom=buildNexusLayout([16,160,16,16,16,16,16,16]);
+    return {
+      rings:layout.rings.length,nodes:layout.nodes.length,
+      sectorCount:layout.sectors.length,overlap,
+      wide:custom.sectors[1].end-custom.sectors[1].start,
+      narrow:custom.sectors[0].end-custom.sectors[0].start,
+      customCount:custom.nodes.length
+    };
+  });
+  assert.equal(geometry.rings,8);
+  assert.equal(geometry.sectorCount,8);
+  assert.ok(geometry.nodes>700,'Demo contains hundreds of nodes');
+  assert.equal(geometry.overlap,false,'Markers must not overlap');
+  assert.ok(geometry.wide>geometry.narrow*3,'Sector spans should reflect data volume');
+  assert.equal(geometry.customCount,272,'Custom sector node count must be preserved');
+  const renderStart=await page.locator('#app').getAttribute('data-rendered');
+  assert.ok(Number(renderStart)>0,'Canvas renders visible objects');
+  const initialZoom=Number(await page.locator('#app').getAttribute('data-zoom'));
+  await page.locator('#app').hover({position:{x:220,y:220}});
+  await page.mouse.wheel(0,-500);
+  await page.waitForTimeout(400);
+  const zoomed=Number(await page.locator('#app').getAttribute('data-zoom'));
+  assert.ok(zoomed>initialZoom,'Wheel zoom increases scale');
+  const bounds=await page.locator('#app').boundingBox();
+  assert.ok(bounds);
+  await page.mouse.move(bounds.x+130,bounds.y+140);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x+210,bounds.y+205,{steps:7});
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+  const pan=Number(await page.locator('#app').getAttribute('data-pan-x'));
+  assert.ok(Math.abs(pan)>20,'Dragging pans the map');
+  await page.locator('#app').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#nexus-card').isVisible(),true);
+  assert.match(await page.locator('#nexus-card-details').textContent(),/Демонстрационный узел/);
+  await page.locator('#nexus-card-close').click();
+  assert.equal(await page.locator('#nexus-card').isVisible(),false);
   assert.equal(await page.locator('.chat-panel').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
   assert.equal(await page.locator('.chat-body').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
   assert.equal(await page.locator('.cloud-section').count(),1);
