@@ -20,7 +20,7 @@ try {
 
 try {
   const html = read('index.html');
-  if (!html.includes('id="app"') || !html.includes('/src/main.ts')) {
+  if (!html.includes('id="app"') || !html.includes('id="chat-form"') || !html.includes('/src/main.ts')) {
     fail('index.html must contain canvas#app and TypeScript entrypoint');
   }
   const css = read('src/style.css');

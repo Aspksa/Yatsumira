@@ -1,14 +1,16 @@
 # YATSUMIRA
 
-Intentionally empty black (#000000) TypeScript + HTML5 Canvas + CSS + Vite website.
+TypeScript + HTML5 Canvas + CSS + Vite.
 
-## Windows launch
+## Main page
 
-Double click `YATSUMIRA.bat` (requires Windows PowerShell 5.1 or later). The script checks filesystem and UTF-8 handling, diagnoses Node/npm, downloads a checksum-verified portable Node.js LTS if necessary, installs missing packages, validates configuration, selects an available local port, and starts Vite with the browser opening automatically. Internet is required on the first installation. Python is not used.
+The left panel displays an animated eight-sector circular system visualization, inspired by the supplied reference. The right panel is a responsive chat UI. The chat accepts messages locally and clearly indicates that the AI API is not connected; no API keys are used in the browser.
 
-Diagnostics are stored locally in `.yatsumira/report.json` (ignored by Git). Reports include classified error codes (10 system, 20 network, 30 filesystem, 40 configuration, 50 runtime), check results, snapshot, changes since last successful launch, and grouped recurring issues. `YATSUMIRA_PORT` sets a preferred starting port.
+The base theme remains pure black (`#000000`). No images or external fonts are loaded.
 
-Warnings about OneDrive or long paths are non-fatal. Hard failures stop startup, without blindly modifying the project.
+## Windows startup
+
+Double-click `YATSUMIRA.bat`. The existing PowerShell launcher performs preflight checks, optional local Node.js installation, npm dependency setup, and starts Vite with a free port. Diagnostics are saved to ignored `.yatsumira/report.json`.
 
 ## Tests
 
@@ -19,9 +21,3 @@ npm run build
 npx playwright install chromium
 npm run test:browser
 ```
-
-On Windows, run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-preflight.ps1` to test filesystem, PowerShell, UTF-8 Cyrillic, disk space, permissions, temp folders, special characters, and config checks.
-
-GitHub Actions runs a clean npm install in a Windows directory containing spaces, &, %, !, ^ and parentheses. Windows build tools are launched via node.exe directly instead of npm run because npm lifecycle command shims can misparse special path characters. The Linux job runs headless Chromium to check HTTP, Canvas, pure-black styles, and browser errors.
-
-The project has no AI functions or graphical UI yet. Keep the page empty.

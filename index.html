@@ -4,10 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#000000" />
-    <title>YATSUMIRA</title>
+    <title>YATSUMIRA · Nexus</title>
   </head>
   <body>
-    <canvas id="app" aria-label="Yatsumira canvas"></canvas>
+    <div class="shell">
+      <section class="visual-panel" aria-label="Визуализация системы">
+        <header class="topbar">
+          <div class="brand"><span class="brand-mark">✦</span> YATSUMIRA <span class="brand-sub">/ NEXUS</span></div>
+          <span class="system-state"><span class="state-dot"></span> INTERFACE ONLINE</span>
+        </header>
+        <div class="visual-area">
+          <canvas id="app" aria-label="Интерактивная круговая визуализация узлов Yatsumira"></canvas>
+          <div class="orbit-caption">SYSTEM NEXUS <span>·</span> v0.1</div>
+        </div>
+        <footer class="bottom-bar"><span>◈ &nbsp; 08 TAILS · 08 DOMAINS</span><span>CANVAS ENGINE <strong>ACTIVE</strong></span></footer>
+      </section>
+      <aside class="chat-panel" aria-label="Панель чата">
+        <div class="chat-header">
+          <div class="avatar">八</div>
+          <div class="chat-identity"><strong>YATSUMIRA</strong><span>Личный ИИ-помощник</span></div>
+          <span class="connection-indicator">UI MODE</span>
+        </div>
+        <div class="chat-body" id="messages" role="log" aria-live="polite">
+          <div class="chat-intro">
+            <div class="intro-glyph">✧</div>
+            <h1>Yatsumira</h1>
+            <p>Восьмихвостая хранительница</p>
+            <span>Интерфейс готов к подключению API</span>
+          </div>
+        </div>
+        <form class="composer" id="chat-form">
+          <label class="sr-only" for="chat-input">Сообщение для Яцумиры</label>
+          <textarea id="chat-input" rows="1" placeholder="Написать Яцумире..." maxlength="4000"></textarea>
+          <button type="submit" aria-label="Отправить сообщение" title="Отправить сообщение">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 14-7-5.5 14-2.6-6.4L5 12Z"/><path d="m10.9 12.6 8.1-7.6"/></svg>
+          </button>
+        </form>
+        <div class="chat-footer">YATSUMIRA · LOCAL INTERFACE <span>API NOT CONNECTED</span></div>
+      </aside>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
