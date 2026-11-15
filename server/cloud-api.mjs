@@ -1,4 +1,5 @@
 import {planMemoryQuery,analyzeMemoryQuestion} from "./memory-v6-intelligence.mjs";
+import {longTermChatContext} from "./memory-v11-longterm.mjs";
 import {recordAnswerAudit} from "./memory-v5-quality.mjs";
 import { hybridRecall } from "./memory-provider.mjs";
 import {startCoreMaintenance,memoryMaintenanceStatus} from "./memory-maintenance.mjs";
@@ -193,8 +194,10 @@ export function cloudApiPlugin() {
               }catch(error){console.error("[YATSUMIRA CORE] Deep recall:",error?.message||String(error));}
             }
             const recalled=makeMemoryContext(userQuery,{maxChars:2500,limit:7,records:candidateMemories});
+            const longTerm=longTermChatContext(userQuery,{maxChars:650});
             const messages = [{ role:"system",content:ASSISTANT },
               ...(recalled.text?[{role:"system",content:recalled.text}]:[]),
+              ...(longTerm.text?[{role:"system",content:"Долговременные данные с источниками; не считай их безусловно верными:\n"+longTerm.text}]:[]),
               ...input.messages];
             const response = await cloudRequest("/chat/completions",key,{method:"POST",data:{model,messages,stream:false}});
             const answer = response?.choices?.[0]?.message?.content;
