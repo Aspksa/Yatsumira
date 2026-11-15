@@ -98,6 +98,28 @@ export function drawNexusScaffold(
     ctx.globalAlpha=1;
   }
 
+  // Subtle inner signal filaments occupy the otherwise empty 0.15–0.36 radial band.
+  // They are decorative and never presented as actual knowledge relationships.
+  if(quality>.55){
+    ctx.save();ctx.lineWidth=.55;ctx.setLineDash([1.4,5]);
+    for(let i=0;i<32;i++){
+      const angle=(i+.3)*PI2/32;
+      const from=83+(i%4)*3;
+      const to=135+(i%3)*7;
+      const x1=Math.cos(angle)*from,y1=Math.sin(angle)*from;
+      const x2=Math.cos(angle)*to,y2=Math.sin(angle)*to;
+      if(!visible(x2,y2,20))continue;
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+      ctx.strokeStyle=i%5===0?"#8bdaca":"#618e97";
+      ctx.globalAlpha=i%5===0?.18:.095;ctx.stroke();
+      if(i%7===0){
+        ctx.setLineDash([]);ctx.fillStyle="#7ddacc";ctx.globalAlpha=.28;
+        ctx.fillRect(x2-1,y2-1,2,2);ctx.setLineDash([1.4,5]);
+      }
+    }
+    ctx.restore();
+  }
+
   // Atmospheric fine dust and tiny endpoint sparks; restrained at low FPS.
   if(quality>.65) {
     for (let i=0;i<58;i++) {
@@ -116,28 +138,26 @@ export function drawNexusScaffold(
 export function drawNexusCore(ctx: CanvasRenderingContext2D, time:number, active:boolean):void {
   const TAU=Math.PI*2;
   ctx.save();
-  ctx.lineWidth=.8;
-  for(const [r,opacity] of [[42,.33],[58,.22],[73,.12]] as const) {
-    ctx.beginPath();ctx.arc(0,0,r,0,TAU);
-    ctx.strokeStyle="#6db4b2";ctx.globalAlpha=opacity;ctx.stroke();
+  // Reference proportions: delicate empty halo and a compact 27-unit nucleus.
+  for(const [radius,alpha] of [[48,.22],[64,.18],[83,.105]] as const){
+    ctx.beginPath();ctx.arc(0,0,radius,0,TAU);
+    ctx.strokeStyle="#4d8f93";ctx.lineWidth=.8;ctx.globalAlpha=alpha;ctx.stroke();
   }
   ctx.globalAlpha=1;
-  const halo=ctx.createRadialGradient(0,0,5,0,0,40);
-  halo.addColorStop(0,"#113131");halo.addColorStop(.5,"#071819");halo.addColorStop(1,"#010708");
-  ctx.beginPath();ctx.arc(0,0,34,0,TAU);
-  ctx.fillStyle=halo;ctx.fill();
-  ctx.lineWidth=1.5;ctx.strokeStyle="#69dccd";ctx.globalAlpha=.85;ctx.stroke();
-  ctx.beginPath();ctx.arc(0,0,26,0,TAU);
-  ctx.strokeStyle="#5f8f8c";ctx.globalAlpha=.38;ctx.lineWidth=.8;ctx.stroke();
-  ctx.globalAlpha=1;
-  ctx.beginPath();ctx.arc(0,0,12,-Math.PI/2+time*.19,Math.PI*1.2+time*.19);
-  ctx.strokeStyle="#b8faf0";ctx.lineWidth=1.3;
-  if(active){ctx.shadowColor="#68e9d8";ctx.shadowBlur=9;}
-  ctx.stroke();ctx.shadowBlur=0;
-  ctx.fillStyle="#c4ebe3";ctx.font='9px '+FONT;
+  const halo=ctx.createRadialGradient(0,0,0,0,0,31);
+  halo.addColorStop(0,"#0c272a");halo.addColorStop(.68,"#061517");halo.addColorStop(1,"#02090b");
+  ctx.beginPath();ctx.arc(0,0,27,0,TAU);
+  ctx.fillStyle=halo;ctx.fill();ctx.strokeStyle="#55d8ca";ctx.lineWidth=1.3;ctx.globalAlpha=.87;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,21,0,TAU);
+  ctx.strokeStyle="#85bcb7";ctx.globalAlpha=.28;ctx.lineWidth=.8;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,10.5,-Math.PI/2+time*.14,Math.PI*1.1+time*.14);
+  ctx.strokeStyle="#bbf8ed";ctx.globalAlpha=.9;ctx.lineWidth=1.3;
+  if(active){ctx.shadowColor="#68e9d8";ctx.shadowBlur=7;}
+  ctx.stroke();ctx.shadowBlur=0;ctx.globalAlpha=1;
+  ctx.fillStyle="#c1efe6";ctx.font="9px "+FONT;
   ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("八",0,0);
-  ctx.font="8px "+FONT;ctx.fillStyle="#8fcbc5";ctx.fillText("YATSUMIRA",0,49);
-  ctx.font="6.5px "+FONT;ctx.fillStyle="#5d8587";ctx.fillText("NEXUS / CORE",0,63);
+  ctx.fillStyle="#81c9c0";ctx.font="8px "+FONT;ctx.fillText("YATSUMIRA",0,43);
+  ctx.fillStyle="#557d80";ctx.font="6.5px "+FONT;ctx.fillText("NEXUS / CORE",0,57);
   ctx.restore();
 }
 
