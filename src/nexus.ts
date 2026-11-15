@@ -1,14 +1,16 @@
 import { drawNexusCore, drawNexusScaffold } from "./nexus-art";
+import { placeNexus, type NexusMode, type NexusPlacement, type NexusPoint } from "./nexus-modes";
 export type NexusKind = "document" | "fact" | "agent";
 export type NexusNode = {
   id: string; title: string; kind: NexusKind; sector: number;
   ring: number; importance: number; x: number; y: number; radius: number;
   actual?: boolean; content?: string; source?: string; verified?: boolean;
+  group?: string; createdAt?: string;
 };
 export type NexusSector = { title: string; count: number; start: number; end: number; color: string };
 export type NexusLayout = { nodes: NexusNode[]; sectors: NexusSector[]; rings: number[] };
 export type NexusStats = { fps: number; drawn: number; total: number; detail: string; knowledge: number; links: number };
-export type KnowledgeRecord = { id:string; title:string; content:string; sector:number; kind:"fact"|"document"|"agent"; importance:number; source:string; verified:boolean };
+export type KnowledgeRecord = { id:string; title:string; content:string; sector:number; kind:"fact"|"document"|"agent"; importance:number; source:string; verified:boolean; group?:string; createdAt?:string };
 export type KnowledgeLink = { source:string; target:string; kind:string; strength:number };
 
 const TWO_PI = Math.PI * 2;
@@ -105,6 +107,12 @@ export class NexusView {
   readonly canvas: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
   private layout = buildNexusLayout();
+  private mode: NexusMode = "rings";
+  private placement: NexusPlacement = placeNexus(this.layout,"rings");
+  private transitioning = false;
+  private transitionStart = 0;
+  private previousPositions = new Map<string,NexusPoint>();
+  private readonly transitionLength = 360;
   private realNodes: NexusNode[] = [];
   private links: {a:NexusNode;b:NexusNode;strength:number}[] = [];
   private readonly onSelect: (node: NexusNode) => void;
