@@ -24,7 +24,7 @@ export function referenceAtlasPositions(layout:NexusLayout):Map<string,AtlasPoin
       const columns=4+(g*2+sectorIndex)%4;
       const rows=Math.ceil(chunk.length/columns);
       const spacingAngle=Math.min(.026,span/(groups*(columns+1.25)));
-      const radialStep=Math.min(8.7,130/Math.max(1,rows-1));
+      const radialStep=Math.min(8.7,102/Math.max(1,rows-1));
       const startRadius=142+((g*7+sectorIndex*3)%4)*7;
       for(let i=0;i<chunk.length;i++){
         const col=i%columns;
