@@ -119,3 +119,39 @@ export function drawNexusCore(ctx: CanvasRenderingContext2D, time:number, active
   ctx.font="6.5px "+FONT;ctx.fillStyle="#5d8587";ctx.fillText("NEXUS / CORE",0,63);
   ctx.restore();
 }
+
+/** Small distinct vector glyphs for orbital node rings (no image fonts or downloads). */
+export function drawNexusGlyph(ctx:CanvasRenderingContext2D,x:number,y:number,r:number,variant:number,color:string):void {
+  ctx.save();ctx.translate(x,y);ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=.8;
+  const n=((variant%8)+8)%8;
+  if(n===0){ctx.beginPath();ctx.moveTo(-r*.38,0);ctx.lineTo(r*.38,0);ctx.moveTo(0,-r*.38);ctx.lineTo(0,r*.38);ctx.stroke();}
+  else if(n===1){ctx.strokeRect(-r*.33,-r*.27,r*.66,r*.54);ctx.beginPath();ctx.moveTo(-r*.22,-r*.10);ctx.lineTo(r*.20,-r*.10);ctx.stroke();}
+  else if(n===2){ctx.beginPath();ctx.moveTo(0,-r*.4);ctx.lineTo(r*.38,r*.30);ctx.lineTo(-r*.38,r*.30);ctx.closePath();ctx.stroke();}
+  else if(n===3){ctx.beginPath();ctx.arc(0,0,r*.33,0,PI2);ctx.stroke();ctx.fillRect(-.8,-.8,1.6,1.6);}
+  else if(n===4){ctx.beginPath();ctx.moveTo(-r*.36,-r*.2);ctx.lineTo(0,r*.36);ctx.lineTo(r*.36,-r*.2);ctx.stroke();}
+  else if(n===5){ctx.beginPath();ctx.moveTo(-r*.34,-r*.33);ctx.lineTo(r*.34,r*.33);ctx.moveTo(r*.34,-r*.33);ctx.lineTo(-r*.34,r*.33);ctx.stroke();}
+  else if(n===6){ctx.beginPath();ctx.arc(-r*.17,-r*.07,r*.16,0,PI2);ctx.arc(r*.17,r*.07,r*.16,0,PI2);ctx.stroke();}
+  else {ctx.beginPath();ctx.moveTo(-r*.28,0);ctx.lineTo(0,-r*.38);ctx.lineTo(r*.28,0);ctx.lineTo(0,r*.38);ctx.closePath();ctx.stroke();}
+  ctx.restore();
+}
+export function drawNexusGroupShapes(ctx:CanvasRenderingContext2D,mode:"rings"|"circle"|"hex"|"force",groups:readonly {x:number;y:number;radius:number;sector:number;label:string;count:number}[],colors:readonly string[],zoom:number):void {
+  if(mode==="rings")return;
+  ctx.save();
+  ctx.lineWidth=.8;ctx.textAlign="center";ctx.textBaseline="middle";
+  for(const group of groups){
+    const color=colors[group.sector]||"#69b9b2";
+    ctx.beginPath();
+    const radius=mode==="hex"?Math.max(38,group.radius):Math.max(31,group.radius);
+    if(mode==="hex"){
+      for(let k=0;k<6;k++){const angle=Math.PI/3*k-Math.PI/6;const x=group.x+Math.cos(angle)*radius,y=group.y+Math.sin(angle)*radius;k===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+      ctx.closePath();
+    }else ctx.arc(group.x,group.y,radius,0,PI2);
+    ctx.strokeStyle=color;ctx.globalAlpha=.28;ctx.stroke();
+    ctx.fillStyle=color;ctx.globalAlpha=.05;ctx.fill();
+    if(zoom>1.12){
+      ctx.fillStyle=color;ctx.globalAlpha=.74;ctx.font="8px Consolas, monospace";
+      ctx.fillText(group.label.slice(0,23),group.x,group.y-radius-13,Math.max(75,radius*2));
+    }
+  }
+  ctx.restore();
+}
