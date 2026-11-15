@@ -36,6 +36,7 @@ try {
   // Layout invariants: eight rings, no overlapping markers and weighted sectors.
   const geometry=await page.evaluate(async()=>{
     const {buildNexusLayout}=await import('/src/nexus.ts');
+    const {referenceAtlasPositions}=await import('/src/nexus-reference.ts');
     const layout=buildNexusLayout();
     let overlap=false;
     for(let i=0;i<layout.nodes.length;i++){
@@ -48,6 +49,11 @@ try {
     }
     const custom=buildNexusLayout([16,160,16,16,16,16,16,16]);
     const grown=buildNexusLayout([300,300,300,300,300,300,300,300]);
+    const artistic=referenceAtlasPositions(layout);
+    const inner=layout.nodes.filter(n=>n.ring<6);
+    const movedInner=inner.filter(n=>{const p=artistic.get(n.id);return p && Math.hypot(p.x-n.x,p.y-n.y)>5;}).length;
+    const outer=layout.nodes.filter(n=>n.ring>=6);
+    const outerSpacing=outer.every(n=>artistic.has(n.id));
     return {
       rings:layout.rings.length,nodes:layout.nodes.length,
       sectorCount:layout.sectors.length,overlap,
@@ -56,11 +62,15 @@ try {
       customCount:custom.nodes.length,
       grownCount:grown.nodes.length,grownRings:grown.rings.length,
       innerLast:layout.rings[5],outerFirst:layout.rings[6],
+      positions:artistic.size,movedInner,outerSpacing,
       innerNodes:layout.nodes.filter(n=>n.ring<6).length,
       outerNodes:layout.nodes.filter(n=>n.ring>=6).length
     };
   });
   assert.equal(geometry.rings,8);
+  assert.equal(geometry.positions,geometry.nodes);
+  assert.ok(geometry.movedInner>geometry.innerNodes*.8,'Reference fan blocks must reorganize most inner nodes');
+  assert.equal(geometry.outerSpacing,true,'Every outer icon must retain a radial position');
   assert.equal(geometry.sectorCount,8);
   assert.ok(geometry.outerFirst-geometry.innerLast>70,'Preserve reference-style open label band');
   assert.ok(geometry.innerNodes>geometry.outerNodes*2,'Dense inner dot clusters and sparse outer circular icons');
