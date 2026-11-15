@@ -1,3 +1,4 @@
+import {startCoreMaintenance,memoryMaintenanceStatus} from "./memory-maintenance.mjs";
 import { recallMemory, makeMemoryContext, memoryOverview } from "./long-memory.mjs";
 import { handleKnowledge } from "./knowledge-api.mjs";
 import {coreOverview,conversationHistory,lookupKnowledge,commitAssistantExchange,validateChatMessages} from "./core-engine.mjs";
@@ -91,6 +92,10 @@ export function cloudApiPlugin() {
   return {
     name: "yatsumira-local-cloud-api",
     configureServer(server) {
+      // Small, persistent maintenance batches; no interface controls or provider charges.
+      const stopMaintenance=startCoreMaintenance({intervalMs:600000,
+        onError:error=>console.error("[YATSUMIRA CORE] Maintenance:",error?.message||String(error))});
+      server.httpServer?.once("close",stopMaintenance);
       server.middlewares.use(async (req, res, next) => {
         const pathname = (req.url || "").split("?")[0];
         if (!pathname.startsWith("/api/cloud/") && !pathname.startsWith("/api/knowledge/") && !pathname.startsWith("/api/core/")) return next();
@@ -119,6 +124,8 @@ export function cloudApiPlugin() {
             const query=(u.searchParams.get("q")||"").slice(0,500);
             return json(res,200,{results:lookupKnowledge(query,20),mode:"lexical"});
           }
+          if (pathname === "/api/core/memory/maintenance" && req.method === "GET")
+            return json(res,200,memoryMaintenanceStatus());
           if (pathname === "/api/core/memory/status" && req.method === "GET")
             return json(res,200,memoryOverview());
           if (pathname === "/api/core/memory/search" && req.method === "GET") {
