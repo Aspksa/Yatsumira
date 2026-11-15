@@ -171,6 +171,34 @@ export class NexusView {
     this.layout = buildNexusLayout(counts);
     this.selectedId = null;
   }
+
+  setKnowledge(records: readonly KnowledgeRecord[], links: readonly KnowledgeLink[]): void {
+    const clean=records.filter(record=>Number.isInteger(record.sector)&&record.sector>=0&&record.sector<8);
+    const base=[108,168,76,124,86,142,112,80];
+    const counts=base.map((count,sector)=>count+clean.filter(row=>row.sector===sector).length);
+    const layout=buildNexusLayout(counts);
+    const mapping=new Map<string,NexusNode>();
+    for(let sector=0;sector<8;sector++){
+      const positions=layout.nodes.filter(node=>node.sector===sector);
+      const incoming=clean.filter(record=>record.sector===sector);
+      positions.sort((a,b)=>b.ring-a.ring||a.id.localeCompare(b.id));
+      for(let i=0;i<Math.min(incoming.length,positions.length);i++){
+        const location=positions[i],record=incoming[i];
+        location.id=record.id;location.title=record.title;location.kind=record.kind;
+        location.importance=Math.min(3,Math.max(1,record.importance));
+        location.radius=location.importance===3?5:location.importance===2?3.6:3;
+        location.content=record.content;location.actual=true;
+        location.verified=record.verified;location.source=record.source;
+        mapping.set(record.id,location);
+      }
+    }
+    this.layout=layout;this.realNodes=[...mapping.values()];
+    this.links=links.slice(-4000).flatMap(link=>{
+      const a=mapping.get(link.source),b=mapping.get(link.target);
+      return a&&b?[{a,b,strength:link.strength}]:[];
+    });
+    if(this.selectedId&&!mapping.has(this.selectedId))this.selectedId=null;
+  }
   private resize():void {
     const bounds=this.canvas.getBoundingClientRect();
     this.width=Math.max(1,bounds.width); this.height=Math.max(1,bounds.height);
