@@ -61,6 +61,20 @@ try {
   const chat = await api("chat","POST",{messages:[{role:"user",content:"Привет"}]});
   assert.equal(chat.status,200);
   assert.equal(chat.data.answer,"Тестовый ответ");
+  const status=await originalFetch(new URL("/api/core/status",base));
+  assert.equal(status.status,200);
+  const core=await status.json();
+  assert.equal(core.storage,"sqlite");
+  assert.equal(core.messages,2);
+  assert.equal(core.conversations,1);
+  const historyResponse=await originalFetch(new URL("/api/core/history",base));
+  const history=await historyResponse.json();
+  assert.deepEqual(history.messages.map(m=>m.role),["user","assistant"]);
+  assert.equal(history.messages[0].content,"Привет");
+  assert.equal(history.messages[1].content,"Тестовый ответ");
+  const searchResponse=await originalFetch(new URL("/api/core/search?q=%D0%B4%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D1%80",base));
+  assert.equal(searchResponse.status,200);
+  assert.equal((await searchResponse.json()).mode,"lexical");
   assert.ok(requestCount>=3);
   console.log("[YATSUMIRA] Cloud.ru proxy API mocked contract tests: OK");
 } finally {
