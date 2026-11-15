@@ -1,3 +1,4 @@
+import { drawNexusCore, drawNexusScaffold } from "./nexus-art";
 export type NexusKind = "document" | "fact" | "agent";
 export type NexusNode = {
   id: string; title: string; kind: NexusKind; sector: number;
@@ -11,7 +12,7 @@ export type KnowledgeRecord = { id:string; title:string; content:string; sector:
 export type KnowledgeLink = { source:string; target:string; kind:string; strength:number };
 
 const TWO_PI = Math.PI * 2;
-const RINGS = [94, 132, 170, 208, 246, 284, 322, 360];
+const RINGS = [148, 170, 192, 214, 236, 258, 342, 362];
 const CATALOG = [
   { title: "Память", color: "#56ded0", count: 108 },
   { title: "Знания", color: "#8fcbe8", count: 168 },
@@ -322,29 +323,9 @@ export class NexusView {
     ctx.scale(scale,scale);
     const viewLeft=(-center.x)/scale,viewTop=(-center.y)/scale;
     const viewRight=(this.width-center.x)/scale,viewBottom=(this.height-center.y)/scale;
-    for (let i=0;i<this.layout.rings.length;i++){
-      const radius=this.layout.rings[i];
-      if(radius*scale<7)continue;
-      if(-radius>viewRight || radius<viewLeft || -radius>viewBottom || radius<viewTop)continue;
-      this.circle(0,0,radius,"#35696c",.13+(i%2)*.04);
-    }
-    for(let i=0;i<this.layout.sectors.length;i++){
-      const sector=this.layout.sectors[i];
-      const angle=(sector.start+sector.end)/2;
-      const x=Math.cos(angle)*71,y=Math.sin(angle)*71;
-      if(x>viewLeft-50&&x<viewRight+50&&y>viewTop-50&&y<viewBottom+50){
-        ctx.fillStyle=sector.color;ctx.globalAlpha=.75;
-        ctx.textAlign="center";ctx.textBaseline="middle";
-        ctx.font="10px Consolas, monospace";
-        ctx.fillText(sector.title,x,y,84);
-        ctx.globalAlpha=1;
-      }
-      // Sector boundaries are derived from data volume, not hard-coded 45-degree slices.
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(sector.start)*85,Math.sin(sector.start)*85);
-      ctx.lineTo(Math.cos(sector.start)*(this.layout.rings[this.layout.rings.length-1]+7),Math.sin(sector.start)*(this.layout.rings[this.layout.rings.length-1]+7));
-      ctx.strokeStyle=sector.color;ctx.globalAlpha=.13;ctx.lineWidth=.8;ctx.stroke();ctx.globalAlpha=1;
-    }
+    drawNexusScaffold(ctx,this.layout,this.animationTime,this.quality,scale,{
+      left:viewLeft,top:viewTop,right:viewRight,bottom:viewBottom
+    });
     if(this.quality>.35){
       const maxEdges=this.quality>.9?900:200;
       let count=0;
@@ -371,23 +352,39 @@ export class NexusView {
       const selected=node.id===this.selectedId;
       const hovered=node.id===this.hovered?.id;
       const pulse=this.reducedMotion||this.quality<.9?0:Math.sin(this.animationTime*1.5+node.ring+node.sector)*.15;
-      const r=node.radius+(selected?2:hovered?1.4:0);
-      ctx.beginPath();
-      ctx.arc(node.x,node.y,r,0,TWO_PI);
-      ctx.fillStyle=color;ctx.globalAlpha=node.actual?1:Math.max(.25,.4+pulse);
-      if(this.quality>.9&&(selected||hovered||node.actual)) {
-        ctx.shadowBlur=12;ctx.shadowColor=color;
+      const outer=node.ring>=6;
+      const r=(outer?Math.max(4,node.radius+1):node.actual?Math.max(2.7,node.radius):Math.min(2.1,node.radius))+(selected?2:hovered?1.3:0);
+      ctx.globalAlpha=node.actual?1:Math.max(outer?.56:.34,outer?.65+pulse*.3:.43+pulse);
+      ctx.strokeStyle=color;ctx.fillStyle=color;
+      if((selected||hovered||node.actual) && this.quality>.65){
+        ctx.shadowBlur=selected?14:7;ctx.shadowColor=color;
       }
-      ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
-      if((node.actual||node.importance>=2) && this.quality>.5 && this.zoom>1.15) this.circle(node.x,node.y,r+2,color,node.actual?.9:.42);
+      if(outer){
+        // Open-circle icons around the perimeter, as in the reference atlas.
+        ctx.beginPath();ctx.arc(node.x,node.y,r,0,TWO_PI);
+        ctx.lineWidth=outer?1.15:.8;ctx.stroke();
+        ctx.shadowBlur=0;
+        ctx.beginPath();ctx.arc(node.x,node.y,Math.max(1,r*.35),0,TWO_PI);
+        if(node.actual || node.importance>=2)ctx.fill();else ctx.stroke();
+        if(node.actual || selected){
+          ctx.beginPath();ctx.arc(node.x,node.y,r+2.2,0,TWO_PI);
+          ctx.globalAlpha=.56;ctx.lineWidth=.8;ctx.stroke();
+        }
+      }else{
+        // Compact rectilinear points form dense radial data blocks.
+        ctx.fillRect(node.x-r*.48,node.y-r*.48,r*.96,r*.96);
+        if(node.actual || selected || (node.importance===3 && this.zoom>1.1)){
+          ctx.shadowBlur=0;
+          ctx.beginPath();ctx.arc(node.x,node.y,r+1.5,0,TWO_PI);
+          ctx.lineWidth=.65;ctx.globalAlpha=.63;ctx.stroke();
+        }
+      }
+      ctx.shadowBlur=0;ctx.globalAlpha=1;
       drawn++;
     }
-    // Central system core.
-    if(viewLeft<22&&viewRight>-22&&viewTop<22&&viewBottom>-22){
-      ctx.beginPath();ctx.arc(0,0,23,0,TWO_PI);ctx.fillStyle="#081d1c";ctx.fill();
-      this.circle(0,0,23,"#7aded0",.9);
-      this.circle(0,0,14,"#56bbaa",.5);
-      ctx.fillStyle="#a7ecdf";ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="10px Consolas, monospace";ctx.fillText("八",0,0);
+    // Precise concentric core occupies the quiet center of the map.
+    if(viewLeft<78&&viewRight>-78&&viewTop<78&&viewBottom>-78){
+      drawNexusCore(ctx,this.animationTime,this.quality>.65);
     }
     ctx.restore();
     this.stats={fps:Math.round(this.fps),drawn,total:this.layout.nodes.length,detail,knowledge:this.realNodes.length,links:this.links.length};
