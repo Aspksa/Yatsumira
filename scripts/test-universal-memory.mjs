@@ -11,7 +11,7 @@ import {
 const previous=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-universal-v4-"));
 try{
   process.chdir(root);
-  assert.equal(coreStatus().version,7);
+  assert.equal(coreStatus().version,8);
   const a=addKnowledge({content:"«Система Альта» использует «База Лира». Проект хранит данные.",source:"note",sector:0});
   const b=addKnowledge({content:"«База Лира» находится в «Комплекс Орион». Это инфраструктура.",source:"note",sector:1});
   const c=addKnowledge({content:"«Мастерская» зависит от «Система Альта». Работа продолжается.",source:"note",sector:2});
