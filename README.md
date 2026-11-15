@@ -33,7 +33,7 @@ The web chat and its settings use the official OpenAI-compatible Cloud.ru Founda
 
 In **Настройки → Подключение Cloud.ru**, paste the API Key Secret and select **Сохранить**. Then click **Загрузить модели** if necessary, and choose a model from the list. The model choice is saved locally. On Windows, the secret is encrypted for the current Windows user using DPAPI and kept in ignored `.yatsumira/cloud-key.dpapi`. The raw key is never saved in web storage or returned to the browser after setup. Changing the API key clears the selected model. On non-Windows hosts, the key is kept in server memory for the running session only (alternatively set `CLOUD_RU_API_KEY` in the server environment).
 
-The local development server listens on `127.0.0.1` only. The Vite development middleware hosts the API endpoints: the static production build alone does **not** provide a backend. Do not expose the development server or its local API endpoints to untrusted users. Conversation context is kept only in the current browser session, not saved to disk.
+The local development server listens on `127.0.0.1` only. The Vite development middleware hosts the API endpoints: the static production build alone does **not** provide a backend. Do not expose the development server or its local API endpoints to untrusted users. The browser keeps its active message context in memory; completed Cloud.ru user/assistant exchanges are also saved atomically by YATSUMIRA CORE in local SQLite.
 
 API access is account-dependent, may incur charges and requires internet. No real Cloud.ru key has been used in the automated tests.
 
@@ -124,3 +124,24 @@ SQLite uses foreign key constraints, full synchronous durability, rollback-journ
 - `GET /api/knowledge/graph`, `POST /api/knowledge/ingest` — existing compatible endpoints, now backed by SQLite
 
 This is infrastructure for later semantic memory, document RAG, legal agents and schedulers; it is **not** autonomous learning or a vector database yet. CORE tests run on Windows and Linux with temporary databases, migration fixtures, deduplication and exchange transaction checks.
+
+
+### CORE maintenance — no UI changes
+
+Run these commands in the project directory (the same directory as `YATSUMIRA.bat`), with Node.js 22+:
+
+```powershell
+node scripts/core-maintenance.mjs status
+node scripts/core-maintenance.mjs check
+node scripts/core-maintenance.mjs backup
+node scripts/core-maintenance.mjs list
+```
+
+- `status` returns schema version and counts, without exposing messages or keys.
+- `check` runs SQLite `integrity_check`, foreign-key checks and finds incomplete user/assistant exchanges. A failed check exits with code 2.
+- `backup` creates a **consistent SQLite snapshot** in `.yatsumira/backups/` using SQLite's `VACUUM INTO`, verifies the resulting file, and reports its SHA-256 hash.
+- `list` lists saved backup filenames. Backups are **not automatically deleted** and should be copied off the USB drive if they need to survive drive loss.
+
+The backup covers **the SQLite database only**. It does not contain your Windows-encrypted Cloud.ru API key, Cloud settings, external documents or the old `knowledge.json` migration source. For a full relocation backup, copy the project and its hidden `.yatsumira` folder securely while the server is stopped. Do not publish backups to GitHub: they contain private conversations and notes.
+
+Automated `scripts/test-maintenance.mjs` validates backups, snapshot independence, corruption/foreign-key inspection and detection of interrupted exchanges on both Linux and Windows. No Docker, Python, external SQLite service or new interface controls are used.
