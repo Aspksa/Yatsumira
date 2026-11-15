@@ -20,7 +20,7 @@ function Find-Node {
         $v = & $node.Source --version
         if ($LASTEXITCODE -ne 0) { return $false }
         $major = [int](($v -replace '^v','').Split('.')[0])
-        return $major -ge 20
+        return $major -ge 22
     } catch { return $false }
 }
 function Install-Node {
@@ -36,7 +36,7 @@ function Install-Node {
     if (@($state.Issues | Where-Object { $_.fatal }).Count) { throw 'Node.js download DNS failed' }
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $release = Invoke-RestMethod 'https://nodejs.org/dist/index.json' | Where-Object {
-        $_.lts -and $_.files -contains "win-$arch-zip" -and [int](($_.version -replace '^v','').Split('.')[0]) -ge 20
+        $_.lts -and $_.files -contains "win-$arch-zip" -and [int](($_.version -replace '^v','').Split('.')[0]) -ge 22
     } | Select-Object -First 1
     if (-not $release) { throw 'No compatible official Node.js LTS release' }
     New-Item -ItemType Directory -Path $tools -Force | Out-Null
