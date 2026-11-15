@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=3;
+const SCHEMA=4;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -40,7 +40,15 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_jobs(name TEXT PRIMARY KEY,cursor TEXT NOT NULL DEFAULT '',last_run TEXT,last_result TEXT NOT NULL DEFAULT '{}',updated_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_evaluations(id TEXT PRIMARY KEY,query TEXT NOT NULL,expected_id TEXT NOT NULL,rank INTEGER,found INTEGER NOT NULL CHECK(found IN (0,1)),created_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_entities(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,entity_type TEXT NOT NULL,display_name TEXT NOT NULL,normalized_name TEXT NOT NULL,offset INTEGER NOT NULL,verified INTEGER NOT NULL DEFAULT 0,CHECK(verified IN (0,1)),UNIQUE(memory_id,entity_type,normalized_name))",
-"CREATE INDEX IF NOT EXISTS idx_memory_entity_name ON memory_entities(entity_type,normalized_name)"
+"CREATE INDEX IF NOT EXISTS idx_memory_entity_name ON memory_entities(entity_type,normalized_name)",
+"CREATE TABLE IF NOT EXISTS graph_nodes(id TEXT PRIMARY KEY,node_type TEXT NOT NULL,label TEXT NOT NULL,normalized_label TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(node_type,normalized_label))",
+"CREATE INDEX IF NOT EXISTS idx_graph_nodes_label ON graph_nodes(normalized_label)",
+"CREATE TABLE IF NOT EXISTS graph_assertions(id TEXT PRIMARY KEY,subject_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,predicate TEXT NOT NULL,object_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),review_state TEXT NOT NULL CHECK(review_state IN ('candidate','reviewed','rejected')),valid_from TEXT NOT NULL,valid_to TEXT,created_at TEXT NOT NULL,UNIQUE(subject_id,predicate,object_id,memory_id))",
+"CREATE INDEX IF NOT EXISTS idx_graph_assertions_subject ON graph_assertions(subject_id,predicate,valid_from)",
+"CREATE INDEX IF NOT EXISTS idx_graph_assertions_object ON graph_assertions(object_id,predicate)",
+"CREATE TABLE IF NOT EXISTS graph_conflicts(id TEXT PRIMARY KEY,left_assertion TEXT NOT NULL REFERENCES graph_assertions(id) ON DELETE CASCADE,right_assertion TEXT NOT NULL REFERENCES graph_assertions(id) ON DELETE CASCADE,review_state TEXT NOT NULL CHECK(review_state IN ('pending','dismissed','resolved')),created_at TEXT NOT NULL,UNIQUE(left_assertion,right_assertion))",
+"CREATE TABLE IF NOT EXISTS memory_feedback(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('useful','irrelevant','incorrect')),created_at TEXT NOT NULL)",
+"CREATE INDEX IF NOT EXISTS idx_memory_feedback_memory ON memory_feedback(memory_id,kind)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
