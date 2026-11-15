@@ -26,13 +26,13 @@ The Playwright test uses a real headless Chromium Canvas and records desktop atl
 
 | Normalized radial band | Reference screenshot (approx.) | Before this refinement | Current run |
 |---|---:|---:|---:|
-| 0–0.15 (core) | 19.1% | 24.9% | 24.7% |
-| 0.15–0.36 (quiet inner band) | 13.3% | 1.4% | 1.4% |
-| 0.36–0.65 (inner data fans) | 20.1% | 1.5% | 12.4% |
-| 0.65–0.85 (caption/connection band) | 3.0% | 2.5% | 4.1% |
+| 0–0.15 (core) | 19.1% | 24.9% | 16.7% |
+| 0.15–0.36 (quiet inner band) | 13.3% | 1.4% | 1.3% |
+| 0.36–0.65 (inner data fans) | 20.1% | 1.5% | 14.3% |
+| 0.65–0.85 (caption/connection band) | 3.0% | 2.5% | 4.2% |
 | 0.85–1.08 (outer icon orbit) | 15.9% | 5.5% | 13.5% |
 
-Current measured run: https://github.com/Aspksa/Yatsumira/actions/runs/43716955143
+Current measured run: https://github.com/Aspksa/Yatsumira/actions/runs/43717589054
 
 ## Inspect the real screenshots
 
@@ -43,6 +43,20 @@ Open the GitHub Actions run above and download the **yatsumira-nexus-visual-snap
 - `yatsumira-mobile.png` — narrow-viewport layout
 
 Automated screenshots are transient CI artifacts, not committed binary assets. The original user reference remains outside the repository.
+
+
+## Five selected refinements completed (2026-11-15)
+
+1. **Core and proximal orbits:** compact nucleus with concentric halos, low-glare lines, and inner signal filaments.
+2. **Caption/connection placement:** labels at fan-group positions; decorative captions skip overlaps while real labels remain visible.
+3. **Adaptive point density:** up to 16 extra procedural microcells per decorative inner marker only when FPS >= 56. Lower performance modes render fewer cells. Actual knowledge is unchanged.
+4. **Responsive audit:** Chrome tests at 1280×720, 1440×900, 1920×1080, 768×1024 and 390×844; no horizontal overflow.
+5. **Screenshot comparison:** the GitHub Actions artifact contains actual Chromium captures of the desktop atlas, several screen sizes and an approximate radial-density comparison JSON.
+
+Verified run: https://github.com/Aspksa/Yatsumira/actions/runs/43717589054 (Linux and Windows passed).
+Reference metrics are estimates, not registered pixel-for-pixel measurements or a proven similarity percentage.
+
+Generated files additionally include yatsumira-compact-desktop.png, yatsumira-wide-desktop.png, yatsumira-tablet.png and reference-comparison.json.
 
 ## Still to refine
 
