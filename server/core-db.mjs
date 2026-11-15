@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=2;
+const SCHEMA=3;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -30,7 +30,15 @@ const sql=[
 "CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(content,content='memory_entries',content_rowid='rowid',tokenize='unicode61 remove_diacritics 2')",
 "CREATE TRIGGER IF NOT EXISTS memory_fts_insert AFTER INSERT ON memory_entries BEGIN INSERT INTO memory_fts(rowid,content) VALUES(new.rowid,new.content); END",
 "CREATE TRIGGER IF NOT EXISTS memory_fts_delete AFTER DELETE ON memory_entries BEGIN INSERT INTO memory_fts(memory_fts,rowid,content) VALUES('delete',old.rowid,old.content); END",
-"CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE OF content ON memory_entries BEGIN INSERT INTO memory_fts(memory_fts,rowid,content) VALUES('delete',old.rowid,old.content); INSERT INTO memory_fts(rowid,content) VALUES(new.rowid,new.content); END"
+"CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE OF content ON memory_entries BEGIN INSERT INTO memory_fts(memory_fts,rowid,content) VALUES('delete',old.rowid,old.content); INSERT INTO memory_fts(rowid,content) VALUES(new.rowid,new.content); END",
+"CREATE TABLE IF NOT EXISTS memory_vectors(memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,model TEXT NOT NULL,dimensions INTEGER NOT NULL CHECK(dimensions BETWEEN 2 AND 4096),vector_json TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(memory_id,model))",
+"CREATE INDEX IF NOT EXISTS idx_memory_vectors_model ON memory_vectors(model)",
+"CREATE TABLE IF NOT EXISTS memory_facts(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,subject TEXT NOT NULL,predicate TEXT NOT NULL,object TEXT NOT NULL,valid_from TEXT NOT NULL,valid_to TEXT,confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),review_state TEXT NOT NULL CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL,UNIQUE(memory_id,subject,predicate,object))",
+"CREATE INDEX IF NOT EXISTS idx_memory_facts_subject ON memory_facts(subject,predicate,valid_from)",
+"CREATE TABLE IF NOT EXISTS memory_conflicts(id TEXT PRIMARY KEY,left_fact TEXT NOT NULL REFERENCES memory_facts(id) ON DELETE CASCADE,right_fact TEXT NOT NULL REFERENCES memory_facts(id) ON DELETE CASCADE,reason TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'pending' CHECK(review_state IN ('pending','dismissed','resolved')),created_at TEXT NOT NULL,UNIQUE(left_fact,right_fact))",
+"CREATE TABLE IF NOT EXISTS memory_summaries(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,source_from TEXT NOT NULL,source_to TEXT NOT NULL,summary TEXT NOT NULL,source_count INTEGER NOT NULL,created_at TEXT NOT NULL,UNIQUE(conversation_id,source_from,source_to))",
+"CREATE TABLE IF NOT EXISTS memory_jobs(name TEXT PRIMARY KEY,cursor TEXT NOT NULL DEFAULT '',last_run TEXT,last_result TEXT NOT NULL DEFAULT '{}',updated_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_evaluations(id TEXT PRIMARY KEY,query TEXT NOT NULL,expected_id TEXT NOT NULL,rank INTEGER,found INTEGER NOT NULL CHECK(found IN (0,1)),created_at TEXT NOT NULL)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
