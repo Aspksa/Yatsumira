@@ -19,6 +19,22 @@
         <label for="chat-width">Ширина чата <output id="width-value">35%</output></label>
         <input id="chat-width" type="range" min="25" max="55" value="35"/>
         <div class="setting-actions"><button type="button" id="reset-view">Сбросить масштаб</button><button type="button" id="reset-settings">По умолчанию</button></div>
+        <div class="cloud-section" aria-labelledby="cloud-heading">
+          <h2 id="cloud-heading">Подключение Cloud.ru</h2>
+          <p class="cloud-help">Foundation Models · API-ключ хранится локально, не в браузере.</p>
+          <label for="cloud-key">Ключ Cloud.ru</label>
+          <div class="cloud-secret-row">
+            <input id="cloud-key" type="password" autocomplete="off" spellcheck="false" placeholder="Вставьте API Key Secret"/>
+            <button type="button" id="cloud-save">Сохранить</button>
+          </div>
+          <div class="cloud-actions">
+            <button type="button" id="cloud-load">Загрузить модели</button>
+            <button type="button" id="cloud-remove">Удалить ключ</button>
+          </div>
+          <label for="cloud-model">Модель для чата</label>
+          <select id="cloud-model"><option value="">Сначала подключите Cloud.ru</option></select>
+          <div id="cloud-status" class="cloud-status" role="status" aria-live="polite">Проверка подключения...</div>
+        </div>
       </section>
       <section class="visual-panel" aria-label="Визуализация системы">
         <div class="visual-area">
@@ -31,14 +47,14 @@
         <div class="chat-header">
           <div class="avatar">八</div>
           <div class="chat-identity"><strong>YATSUMIRA</strong><span>Личный ИИ-помощник</span></div>
-          <span class="connection-indicator">UI MODE</span>
+          <span class="connection-indicator" id="connection-indicator">НЕ ПОДКЛЮЧЕНО</span>
         </div>
         <div class="chat-body" id="messages" role="log" aria-live="polite">
           <div class="chat-intro">
             <div class="intro-glyph">✧</div>
             <h1>Yatsumira</h1>
             <p>Восьмихвостая хранительница</p>
-            <span>Интерфейс готов к подключению API</span>
+            <span id="chat-intro-status">Подключите Cloud.ru в настройках</span>
           </div>
         </div>
         <form class="composer" id="chat-form">
@@ -48,7 +64,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 14-7-5.5 14-2.6-6.4L5 12Z"/><path d="m10.9 12.6 8.1-7.6"/></svg>
           </button>
         </form>
-        <div class="chat-footer">YATSUMIRA · LOCAL INTERFACE <span>API NOT CONNECTED</span></div>
+        <div class="chat-footer">YATSUMIRA · CLOUD.RU <span id="chat-model-indicator">МОДЕЛЬ НЕ ВЫБРАНА</span></div>
       </aside>
     </div>
     <script type="module" src="/src/main.ts"></script>
