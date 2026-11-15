@@ -24,7 +24,7 @@ export function summarizeExperience({kind="success",limit=30}={}){
     if(!groups.has(key))groups.set(key,[]);
     groups.get(key).push(row);
   }
-  return [...groups].filter(([,rows])=>rows.length>=2).slice(0,limit).map(([topic,rows])=>({
+  return [...groups].filter(([,rows])=>rows.length>=2 && new Set(rows.map(r=>r.memoryId)).size>=2).slice(0,limit).map(([topic,rows])=>({
     topic,kind,sourceMemoryIds:[...new Set(rows.map(r=>r.memoryId))],
     taskIds:rows.map(r=>r.id),successes:rows.filter(r=>r.status==="done").length,
     failures:rows.filter(r=>r.status==="cancelled").length,
