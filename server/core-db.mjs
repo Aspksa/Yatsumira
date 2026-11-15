@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=8;
+const SCHEMA=10;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -84,7 +84,14 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_v8_metrics(id TEXT PRIMARY KEY,metric_type TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_v8_graph_snapshots(id TEXT PRIMARY KEY,checksum TEXT NOT NULL,as_of TEXT NOT NULL,nodes INTEGER NOT NULL,edges INTEGER NOT NULL,created_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_v8_experiments(id TEXT PRIMARY KEY,name TEXT NOT NULL,baseline_json TEXT NOT NULL,candidate_json TEXT NOT NULL,accepted INTEGER NOT NULL CHECK(accepted IN (0,1)),created_at TEXT NOT NULL)",
-"CREATE TABLE IF NOT EXISTS memory_v8_decision_outcomes(id TEXT PRIMARY KEY,decision_id TEXT NOT NULL REFERENCES memory_decisions(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,outcome TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)"
+"CREATE TABLE IF NOT EXISTS memory_v8_decision_outcomes(id TEXT PRIMARY KEY,decision_id TEXT NOT NULL REFERENCES memory_decisions(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,outcome TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS graph_v10_type_proposals(id TEXT PRIMARY KEY,name TEXT NOT NULL UNIQUE,parent_name TEXT,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,state TEXT NOT NULL DEFAULT 'candidate' CHECK(state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS graph_v10_identity(id TEXT PRIMARY KEY,canonical_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,alias_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,state TEXT NOT NULL CHECK(state IN ('proposed','merged','split','rejected')),evidence TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(canonical_id,alias_id,source_memory_id))",
+"CREATE INDEX IF NOT EXISTS idx_graph_v10_identity_alias ON graph_v10_identity(alias_id,state)",
+"CREATE TABLE IF NOT EXISTS graph_v10_event_links(event_id TEXT NOT NULL REFERENCES graph_events(id) ON DELETE CASCADE,node_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,role TEXT NOT NULL,PRIMARY KEY(event_id,node_id,role))",
+"CREATE TABLE IF NOT EXISTS graph_v10_causal(id TEXT PRIMARY KEY,cause_event_id TEXT NOT NULL REFERENCES graph_events(id) ON DELETE CASCADE,effect_event_id TEXT NOT NULL REFERENCES graph_events(id) ON DELETE CASCADE,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,state TEXT NOT NULL DEFAULT 'candidate' CHECK(state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL,UNIQUE(cause_event_id,effect_event_id,source_memory_id))",
+"CREATE TABLE IF NOT EXISTS graph_v10_experience(id TEXT PRIMARY KEY,task_id TEXT NOT NULL REFERENCES memory_tasks(id) ON DELETE CASCADE,event_id TEXT NOT NULL REFERENCES graph_events(id) ON DELETE CASCADE,role TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(task_id,event_id,role))",
+"CREATE TABLE IF NOT EXISTS graph_v10_proposals(id TEXT PRIMARY KEY,left_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,right_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,source_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('link','identity','anomaly')),confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),state TEXT NOT NULL DEFAULT 'candidate' CHECK(state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL,UNIQUE(left_id,right_id,source_memory_id,kind))"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
