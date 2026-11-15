@@ -348,7 +348,7 @@ async function submitMessage():Promise<void> {
   busy=true;submitButton.disabled=true;
   addMessage(text,"user");
   input!.value="";input!.style.height="auto";
-  const outgoing:ChatMessage[]=[...history,{role:"user",content:text}].slice(-29);
+  const outgoing:ChatMessage[]=[...history,{role:"user" as const,content:text}].slice(-29);
   try{
     const result=await requestApi<{answer:string}>("chat",{method:"POST",body:JSON.stringify({messages:outgoing})});
     history.splice(0,history.length,...outgoing,{role:"assistant",content:result.answer});
