@@ -1,3 +1,4 @@
+import { referenceAtlasPositions } from "./nexus-reference";
 import type { NexusLayout, NexusNode } from "./nexus";
 
 export type NexusMode = "rings" | "circle" | "hex" | "force";
@@ -37,20 +38,10 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
   const positions=new Map<string,NexusPoint>();
   const groups:NexusGroup[]=[];
   if(mode==="rings"){
-    // Decorative markers keep the original reference composition.
+    // Decorative markers form asymmetric radial fans and paired outer orbits.
+    const reference=referenceAtlasPositions(layout);
     for(const node of layout.nodes){
-      const sector=layout.sectors[node.sector];
-      let angle=Math.atan2(node.y,node.x);
-      while(angle<sector.start)angle+=TAU;
-      while(angle>sector.end)angle-=TAU;
-      const span=Math.max(.001,sector.end-sector.start);
-      const fraction=Math.max(0,Math.min(.999999,(angle-sector.start)/span));
-      const block=Math.min(3,Math.floor(fraction*4));
-      const local=fraction*4-block;
-      const compact=(block+.07+local*.86)/4;
-      const adjusted=sector.start+span*compact;
-      const radius=Math.hypot(node.x,node.y);
-      positions.set(node.id,{x:Math.cos(adjusted)*radius,y:Math.sin(adjusted)*radius});
+      positions.set(node.id,reference.get(node.id)??{x:node.x,y:node.y});
     }
     // Actual knowledge forms additional clustered blocks rather than scattered dots.
     const bySector=Array.from({length:8},()=>new Map<string,NexusNode[]>());
