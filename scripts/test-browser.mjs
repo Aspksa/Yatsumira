@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 
 const root=resolve(import.meta.dirname,'..');
-const server=await createServer({configFile:false,root,server:{host:'127.0.0.1',port:0,strictPort:false,open:false}});
+const server=await createServer({configFile:resolve(root,'vite.config.mjs'),root,server:{host:'127.0.0.1',port:0,strictPort:false,open:false}});
 let browser;
 try {
   await server.listen();
