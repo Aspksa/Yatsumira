@@ -145,3 +145,33 @@ node scripts/core-maintenance.mjs list
 The backup covers **the SQLite database only**. It does not contain your Windows-encrypted Cloud.ru API key, Cloud settings, external documents or the old `knowledge.json` migration source. For a full relocation backup, copy the project and its hidden `.yatsumira` folder securely while the server is stopped. Do not publish backups to GitHub: they contain private conversations and notes.
 
 Automated `scripts/test-maintenance.mjs` validates backups, snapshot independence, corruption/foreign-key inspection and detection of interrupted exchanges on both Linux and Windows. No Docker, Python, external SQLite service or new interface controls are used.
+
+
+## CORE v2 — long-term memory (backend only; no GUI changes)
+
+The project now stores persistent long-term memory in the same portable \`.yatsumira/yatsumira.sqlite\` database. Existing notes, graph links, complete assistant/user exchanges, Windows startup, Cloud.ru settings and web interface are preserved.
+
+**Memory layers:**
+- **Knowledge** — deduplicated source-labeled notes imported from the old knowledge store and new data.
+- **Episodes** — user's meaningful conversation turns, indexed after an assistant response is successfully saved. Generated assistant messages are **not** treated as user facts.
+- **Manual memories** — explicitly entered records with importance and immutable provenance.
+- **Associations** — lexical links between related memories; these do not imply truth, causal relationships or legal conclusions.
+- **Temporal changes** — records can be superseded or retracted while retaining a historical audit trail. Old or retracted versions are excluded from active retrieval.
+
+**Retrieval** combines SQLite **FTS5**, Russian/English word prefixes, character n-gram similarity, deduplication, importance, verification/confidence, and recency ranking. Only relevant, bounded context is sent to Cloud.ru before a chat response, annotated as *untrusted historical information* (never system instructions). Unverified information remains unverified. Credential-like snippets are filtered from automatic recall, but users should still avoid storing secrets in notes.
+
+**No embedding or rerank model is claimed:** the Foundation Models public OpenAPI currently documents \`/models\` and \`/chat/completions\`, not a confirmed embedding endpoint. The hybrid retrieval works with no extra software, Ollama, Docker or database service, including offline. Cloud.ru is required only to generate AI chat responses.
+
+**Local commands (no new UI):**
+
+\`\`\`powershell
+node scripts/memory.mjs status
+node scripts/memory.mjs recall "срок оплаты договора"
+node scripts/memory.mjs remember "Сохранить важное правило предприятия"
+node scripts/memory.mjs replace RECORD_ID "Исправленная версия правила"
+node scripts/memory.mjs retract RECORD_ID
+\`\`\`
+
+Replacing a record creates a new version, marks the previous version as superseded and preserves its provenance. Retraction disables a record in active recall but **does not securely erase its original text** from the database or backups. For confidential data removal, handle both the source SQLite file and backups separately.
+
+Backend routes (under existing localhost/origin restrictions) are \`GET /api/core/memory/status\` and \`GET /api/core/memory/search?q=...\`. CORE v2 migration runs automatically and transactionally on the first access; backed-up v1 SQLite and the legacy \`knowledge.json\` are not destroyed. Tests cover migration, deduplication, provenance, dialogue continuity, memory recall into Cloud.ru, source safety, temporal revisions, FTS5 integrity, and Windows/Linux portability.
