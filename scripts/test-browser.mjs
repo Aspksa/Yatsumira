@@ -38,11 +38,11 @@ try {
   assert.equal(await page.locator('#settings-panel').isVisible(),true);
   assert.equal(await page.locator('#settings-toggle').getAttribute('aria-expanded'),'true');
   await page.locator('#animation-speed').fill('150');
-  assert.equal(await page.locator('#speed-value').inputValue(),'150%');
+  assert.equal(await page.locator('#speed-value').textContent(),'150%');
   await page.locator('#chat-width').fill('45');
-  assert.equal(await page.locator('#width-value').inputValue(),'45%');
+  assert.equal(await page.locator('#width-value').textContent(),'45%');
   await page.locator('#reset-settings').click();
-  assert.equal(await page.locator('#width-value').inputValue(),'35%');
+  assert.equal(await page.locator('#width-value').textContent(),'35%');
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#settings-panel').isVisible(),false);
   await page.locator('#app').hover({position:{x:220,y:220}});
