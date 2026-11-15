@@ -388,6 +388,22 @@ export class NexusView {
       }
       ctx.globalAlpha=1;
     }
+    // Structural association with the topic group (not a semantic fact link).
+    if(this.selectedId){
+      const chosen=this.layout.nodes.find(item=>item.id===this.selectedId);
+      if(chosen?.actual){
+        const group=this.placement.groups.find(item=>item.id===chosen.sector+"|"+(chosen.group||"Записи"));
+        if(group){
+          const p=this.position(chosen);
+          ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(group.x,group.y);
+          ctx.strokeStyle="#b7d6d0";ctx.globalAlpha=.36;
+          ctx.setLineDash([2,4]);ctx.lineWidth=.8;ctx.stroke();ctx.setLineDash([]);
+          ctx.beginPath();ctx.arc(group.x,group.y,4,0,TWO_PI);
+          ctx.strokeStyle="#7ae7d0";ctx.globalAlpha=.8;ctx.stroke();
+          ctx.globalAlpha=1;
+        }
+      }
+    }
     let drawn=0;
     const lod = this.zoom<.95?3:this.zoom<1.45?2:1;
     const detail = this.quality<.5?"low":this.quality<.9?"medium":"high";
@@ -435,6 +451,12 @@ export class NexusView {
         ctx.font="8px Consolas, monospace";ctx.textAlign="center";ctx.textBaseline="middle";
         ctx.fillStyle=color;ctx.globalAlpha=node.actual?.93:.55;
         ctx.fillText(node.title.slice(0,28),nx,ny-r-9,120);
+        ctx.globalAlpha=1;
+      }
+      if(selected&&node.actual&&this.zoom>3.2&&node.content){
+        ctx.font="7px Consolas, monospace";ctx.textAlign="center";
+        ctx.fillStyle="#a1c6c0";ctx.globalAlpha=.77;
+        ctx.fillText(node.content.slice(0,55),nx,ny+r+14,145);
         ctx.globalAlpha=1;
       }
       drawn++;
