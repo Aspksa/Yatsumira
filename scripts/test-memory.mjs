@@ -14,7 +14,7 @@ try{
     version:1,revision:2,records:[{id:"legacy-a",content:"Старый договор поставки на строительные материалы в ноябре",title:"Договор",sector:1,source:"note",kind:"fact",importance:2,verified:false,createdAt:"2026-01-01T00:00:00.000Z"}],links:[]
   }));
   assert.equal(getKnowledgeGraph().records.length,1);
-  assert.equal(coreStatus().version,2);
+  assert.equal(coreStatus().version,3);
   assert.ok(memoryOverview().active>=1,"Legacy entries should be indexed");
   const added=addKnowledge({content:"Для договора поставки срок оплаты составляет сорок пять дней",sector:1,source:"note"});
   assert.equal(added.added,true);
@@ -57,7 +57,7 @@ try{
   try{
     process.chdir(other);
     withCoreDatabase(db=>db.prepare("UPDATE core_meta SET value='1' WHERE key='schema_version'").run());
-    assert.equal(coreStatus().version,2);
+    assert.equal(coreStatus().version,3);
     assert.equal(coreStatus().memory,0);
   }finally{process.chdir(temp);rmSync(other,{recursive:true,force:true});}
   console.log("[YATSUMIRA MEMORY] migration, recall, context limits, episodes, provenance, supersession, privacy: OK");
