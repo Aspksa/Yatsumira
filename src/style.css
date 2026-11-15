@@ -152,3 +152,31 @@ canvas { display:block; width:100%; height:100%; background:transparent; }
 .knowledge-section #knowledge-add:hover{background:#20766a;}
 .knowledge-section #knowledge-add:disabled{opacity:.6;cursor:wait;}
 #knowledge-status{font-size:11px;line-height:1.5;color:#81bbaf;margin-top:10px;overflow-wrap:anywhere;}
+
+/* NEXUS layout controls live above the Canvas, without breaking the unified black theme. */
+.nexus-mode-bar {
+ position:absolute;left:18px;top:15px;z-index:3;display:flex;gap:3px;flex-wrap:wrap;
+ padding:4px;border:1px solid #223b3a;border-radius:10px;background:#030909e8;
+ box-shadow:0 8px 24px #0009;
+}
+.nexus-mode-bar button {
+ border:0;border-radius:6px;padding:8px 11px;background:transparent;color:#799d9c;
+ font:11px Consolas,monospace;cursor:pointer;transition:color .15s,background .15s;
+}
+.nexus-mode-bar button:hover {color:#baf2e6;background:#0c2624;}
+.nexus-mode-bar button[aria-pressed="true"] {color:#b5f6e5;background:#154039;box-shadow:inset 0 0 0 1px #336d60;}
+.nexus-mode-bar button:focus-visible {outline:2px solid #80eed5;outline-offset:2px;}
+.nexus-card {max-height:min(65vh,560px);overflow-y:auto;top:69px;}
+.nexus-card-meta {display:grid;grid-template-columns:85px minmax(0,1fr);gap:7px 9px;margin:14px 0 0;font-size:11px;line-height:1.4;}
+.nexus-card-meta dt {color:#628e89;}
+.nexus-card-meta dd {margin:0;color:#b7ded5;overflow-wrap:anywhere;}
+.nexus-card-related {margin-top:14px;border-top:1px solid #1a3e38;padding-top:10px;display:flex;flex-direction:column;gap:5px;}
+.nexus-card-related strong {font-size:11px;font-weight:600;color:#70d7bf;margin:0 0 4px;}
+.nexus-card-related button {text-align:left;background:#0a201d;color:#bcf0e1;border:1px solid #254c43;border-radius:6px;padding:7px 10px;cursor:pointer;font-size:11px;overflow-wrap:anywhere;}
+.nexus-card-related button:hover {background:#143b34;}
+.nexus-card-related small {color:#739d96;}
+@media(max-width:650px) {
+ .nexus-mode-bar {left:9px;top:10px;gap:1px;right:9px;justify-content:center;}
+ .nexus-mode-bar button {padding:8px 9px;font-size:10px;}
+ .nexus-card {top:60px;right:9px;width:calc(100% - 18px);}
+}
