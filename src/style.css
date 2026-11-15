@@ -134,3 +134,21 @@ canvas { display:block; width:100%; height:100%; background:transparent; }
   .orbit-caption {left:14px;bottom:17px;font-size:9px;max-width:75%;line-height:1.5;}
   .nexus-card {top:12px;right:12px;}
 }
+
+/* Locally growing knowledge graph editor within existing settings. */
+.knowledge-section {margin-top:24px;border-top:1px solid #22433c;padding-top:20px;}
+.knowledge-section h2 {font-size:13px;color:#d5f1e9;margin:0 0 8px;letter-spacing:.05em;}
+.knowledge-section p {font-size:11px;line-height:1.55;color:#80a9a2;margin:0 0 12px;}
+.knowledge-section select,.knowledge-section textarea {
+  display:block;width:100%;padding:10px;border:1px solid #31524d;border-radius:6px;
+  background:#030909;color:#d3efe7;font-size:12px;
+}
+.knowledge-section textarea {resize:vertical;min-height:80px;max-height:180px;}
+.knowledge-section #knowledge-add {
+  display:block;margin-top:12px;width:100%;padding:11px;
+  border-radius:7px;background:#14584f;border:1px solid #3f8277;color:#def8ef;
+  font-size:12px;cursor:pointer;
+}
+.knowledge-section #knowledge-add:hover{background:#20766a;}
+.knowledge-section #knowledge-add:disabled{opacity:.6;cursor:wait;}
+#knowledge-status{font-size:11px;line-height:1.5;color:#81bbaf;margin-top:10px;overflow-wrap:anywhere;}
