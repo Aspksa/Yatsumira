@@ -61,7 +61,7 @@ export function importLegacyMemory(db,batch=500) {
     done++;
   }
   if(done>=batch)return done;
-  const messages=db.prepare("SELECT id,conversation_id,content,created_at FROM messages WHERE role='user' AND NOT EXISTS(SELECT 1 FROM memory_entries m WHERE m.source_kind='dialogue' AND m.source_id=messages.id) ORDER BY rowid LIMIT ?").all(batch-done);
+  const messages=db.prepare("SELECT id,conversation_id,content,created_at FROM messages WHERE role='user' AND NOT EXISTS(SELECT 1 FROM memory_entries m WHERE m.source_kind='dialogue' AND m.source_id=messages.id) AND NOT EXISTS(SELECT 1 FROM core_meta c WHERE c.key='memory_skip_'||messages.id) ORDER BY rowid LIMIT ?").all(batch-done);
   // Short and sensitive messages are not indexed; mark them as examined to avoid
   // re-reading forever, without duplicating their contents in memory.
   const skipped=db.prepare("INSERT OR IGNORE INTO core_meta(key,value) VALUES(?,?)");
