@@ -251,13 +251,14 @@ export class NexusView {
     this.canvas.width=Math.max(1,Math.round(this.width*this.dpr));
     this.canvas.height=Math.max(1,Math.round(this.height*this.dpr));
   }
+  private get centerY():number { return this.height*.55; }
   private toWorld(x:number,y:number):{x:number;y:number} {
     const s=this.baseScale*this.zoom;
-    return {x:(x-this.width/2-this.panX)/s,y:(y-this.height/2-this.panY)/s};
+    return {x:(x-this.width/2-this.panX)/s,y:(y-this.centerY-this.panY)/s};
   }
   private toScreen(x:number,y:number):{x:number;y:number} {
     const s=this.baseScale*this.zoom;
-    return {x:this.width/2+this.panX+x*s,y:this.height/2+this.panY+y*s};
+    return {x:this.width/2+this.panX+x*s,y:this.centerY+this.panY+y*s};
   }
   private wheel(event:WheelEvent):void {
     event.preventDefault();
@@ -267,7 +268,7 @@ export class NexusView {
     this.targetZoom=Math.max(.55,Math.min(5,old*Math.exp(-event.deltaY*.0011)));
     const ratio=this.targetZoom/old;
     this.targetPanX=x-this.width/2-(x-this.width/2-this.targetPanX)*ratio;
-    this.targetPanY=y-this.height/2-(y-this.height/2-this.targetPanY)*ratio;
+    this.targetPanY=y-this.centerY-(y-this.centerY-this.targetPanY)*ratio;
   }
   private down(event:PointerEvent):void {
     if(event.button!==0)return;
