@@ -156,7 +156,7 @@ export class NexusView {
     this.canvas.addEventListener("keydown",event => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        const node = this.hovered || this.layout.nodes.find(item => item.importance === 3) || this.layout.nodes[0];
+        const node = this.hovered || this.realNodes[0] || this.layout.nodes.find(item => item.importance === 3) || this.layout.nodes[0];
         if (node) this.select(node);
       } else if (event.key === "+" || event.key === "=") {
         this.targetZoom = Math.min(5, this.targetZoom * 1.2);
