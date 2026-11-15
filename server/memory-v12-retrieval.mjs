@@ -9,6 +9,7 @@ import {graphRecall} from "./universal-memory-graph.mjs";
 import {sourceAwareOrder} from "./memory-v8-retrieval.mjs";
 import {planMemoryQuery} from "./memory-v6-intelligence.mjs";
 import {compareMemoryAlgorithms} from "./memory-v8-operations.mjs";
+import {feedbackPriority} from "./memory-v12-learning.mjs";
 const now=()=>new Date().toISOString();
 const safe=(v,max=500)=>{const s=String(v??"").trim();if(!s||s.length>max||confidential.test(s))throw Error("Invalid query");return s;};
 export function retrievalPlan(query,{budget=12}={}){
@@ -30,9 +31,10 @@ export function adaptiveRecall(query,{limit=8}={}){
       map.set(item.id,prior);
     }
   }
-  const results=sourceAwareOrder(query,[...map.values()],{limit}).map(x=>({...x,
-    searchScore:Number((x.rankScore+x.retrievalScore).toFixed(4)),
-    requiresSourceValidation:true}));
+  const results=sourceAwareOrder(query,[...map.values()],{limit:Math.min(30,Math.max(limit*3,12))}).map(x=>({...x,
+    searchScore:Number((x.rankScore+x.retrievalScore+feedbackPriority(x.id).boost).toFixed(4)),
+    requiresSourceValidation:true})).sort((a,b)=>b.searchScore-a.searchScore||a.id.localeCompare(b.id))
+    .slice(0,Math.max(1,Math.min(30,limit)));
   return {plan,results,mode:graph.length?"fts-graph-fusion":"fts-local",noModelRequired:true};
 }
 export function retrievalProfileProposal({name,weights}){
