@@ -106,7 +106,7 @@ export function recordRetrievalEvaluation(cases,retrieve){
   return report;
 }
 export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
-  const job=()=>{try{consolidateStep({batch:35});}catch(error){onError(error);}};
+  const job=()=>{try{consolidateStep({batch:35});summarizeConversation({conversationId:"default",maxMessages:80});}catch(error){onError(error);}};
   const timer=setInterval(job,Math.max(60000,intervalMs));
   timer.unref?.();
   return ()=>clearInterval(timer);
