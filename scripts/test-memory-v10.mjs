@@ -7,7 +7,7 @@ import {assertGraphRelation,recordMemoryEvent} from "../server/universal-memory-
 import {createMemoryTask,updateMemoryTask} from "../server/memory-v5-records.mjs";
 import {proposeGraphType,reviewGraphType,proposeIdentity,mergeIdentity,splitIdentity,resolveIdentity,identityCandidates} from "../server/memory-v10-identity.mjs";
 import {graphProvenance,inspectGraphRules,linkEventNode,eventHistory,proposeEventCause,inspectEventCauses,connectTaskEvent,experienceGraph} from "../server/memory-v10-events.mjs";
-import {discoverGraphLinks,graphAnomalyReview,graphDiscoveryStats} from "../server/memory-v10-discovery.mjs";
+import {discoverGraphLinks,graphAnomalyReview,graphDiscoveryStats,knowledgeBridges} from "../server/memory-v10-discovery.mjs";
 import {scheduleMemoryJob,runMemoryJob,recoverInterruptedJobs} from "../server/memory-v8-operations.mjs";
 const cwd=process.cwd(),folder=mkdtempSync(join(tmpdir(),"yatsumira-v10-"));
 try{
@@ -42,6 +42,8 @@ try{
   assert.ok(links.candidates.some(x=>[x.leftId,x.rightId].includes(one.subjectId)&&[x.leftId,x.rightId].includes(three.objectId)));
   assert.equal(discoverGraphLinks({limit:10,persist:true}).candidates.length,links.candidates.length);
   assert.ok(graphDiscoveryStats().proposed>=1);
+  const bridges=knowledgeBridges();
+  assert.ok(bridges.some(x=>x.nodeId===three.subjectId));
   const anomaly=graphAnomalyReview({persist:true});
   assert.equal(anomaly.fixApplied,false);
   recordMemoryEvent({memoryId:ma,title:"Запуск проекта",eventType:"launch",occurredAt:"2026-01-01"});
