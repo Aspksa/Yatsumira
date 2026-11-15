@@ -25,14 +25,33 @@ function anchor(sector:number,index:number,count:number,mode:NexusMode):NexusPoi
 function nodeGroup(node:NexusNode):string {
   if(node.actual) return node.group?.trim() || "Записи";
   // Demo clusters imitate independent source projects in the supplied reference.
-  return ["Группа A","Группа B","Группа C","Группа D"][Math.floor(hash(node.id)*4)];
+  const angle=Math.atan2(node.y,node.x);
+  const from=-Math.PI/2+node.sector*TAU/8;
+  let relative=angle-from;
+  while(relative<0)relative+=TAU;
+  while(relative>=TAU)relative-=TAU;
+  const group=Math.max(0,Math.min(3,Math.floor(relative/(TAU/8/4))));
+  return ["Группа A","Группа B","Группа C","Группа D"][group];
 }
 export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:NexusNode;b:NexusNode;strength:number}[]=[]):NexusPlacement {
   const positions=new Map<string,NexusPoint>();
   const groups:NexusGroup[]=[];
   if(mode==="rings"){
     // Decorative markers keep the original reference composition.
-    for(const node of layout.nodes)positions.set(node.id,{x:node.x,y:node.y});
+    for(const node of layout.nodes){
+      const sector=layout.sectors[node.sector];
+      let angle=Math.atan2(node.y,node.x);
+      while(angle<sector.start)angle+=TAU;
+      while(angle>sector.end)angle-=TAU;
+      const span=Math.max(.001,sector.end-sector.start);
+      const fraction=Math.max(0,Math.min(.999999,(angle-sector.start)/span));
+      const block=Math.min(3,Math.floor(fraction*4));
+      const local=fraction*4-block;
+      const compact=(block+.07+local*.86)/4;
+      const adjusted=sector.start+span*compact;
+      const radius=Math.hypot(node.x,node.y);
+      positions.set(node.id,{x:Math.cos(adjusted)*radius,y:Math.sin(adjusted)*radius});
+    }
     // Actual knowledge forms additional clustered blocks rather than scattered dots.
     const bySector=Array.from({length:8},()=>new Map<string,NexusNode[]>());
     for(const node of layout.nodes){
@@ -43,6 +62,15 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
       bySector[node.sector].set(label,existing);
     }
     for(let sector=0;sector<8;sector++){
+      // Demonstration clusters occupy distinct radial wedges; no fabricated file links.
+      for(let groupIndex=0;groupIndex<4;groupIndex++){
+        const sectorInfo=layout.sectors[sector];
+        const angle=sectorInfo.start+(groupIndex+.5)*(sectorInfo.end-sectorInfo.start)/4;
+        const label=["Группа A","Группа B","Группа C","Группа D"][groupIndex];
+        groups.push({id:"demo-"+sector+"-"+groupIndex,label,sector,
+          count:layout.nodes.filter(node=>!node.actual&&node.sector===sector&&nodeGroup(node)===label).length,
+          x:Math.cos(angle)*285,y:Math.sin(angle)*285,radius:0});
+      }
       const entries=[...bySector[sector]].sort((a,b)=>a[0].localeCompare(b[0],"ru"));
       const section=layout.sectors[sector];
       const span=section.end-section.start;
