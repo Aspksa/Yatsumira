@@ -24,6 +24,42 @@ try {
   await page.waitForTimeout(220);
   await page.locator('#app').screenshot({path:join(visualDir,'nexus-atlas-desktop.png')});
   await page.screenshot({path:join(visualDir,'yatsumira-desktop.png'),fullPage:true});
+  // Multi-viewport screenshot suite catches incorrect atlas scaling, clipped controls,
+  // unintentional horizontal overflow, and responsiveness regressions.
+  for(const [name,viewWidth,viewHeight] of [
+    ['compact-desktop',1280,720],
+    ['wide-desktop',1920,1080],
+    ['tablet',768,1024]
+  ]){
+    const comparison=await browser.newPage({viewport:{width:viewWidth,height:viewHeight}});
+    try{
+      await comparison.goto(url,{waitUntil:'networkidle'});
+      await comparison.waitForTimeout(200);
+      const measurements=await comparison.evaluate(()=>{
+        const shell=document.querySelector('.shell');
+        const canvas=document.querySelector('#app');
+        const header=document.querySelector('.topbar');
+        const chat=document.querySelector('.chat-panel');
+        const modes=document.querySelector('.nexus-mode-bar');
+        return {
+          horizontalOverflow:document.documentElement.scrollWidth>window.innerWidth+2,
+          canvasWidth:canvas?.getBoundingClientRect().width,
+          canvasHeight:canvas?.getBoundingClientRect().height,
+          headerVisible:!!header && header.getBoundingClientRect().width>0,
+          chatVisible:!!chat && chat.getBoundingClientRect().width>0,
+          modesVisible:!!modes && modes.getBoundingClientRect().width>0,
+          atlasNodes:Number(canvas?.dataset.rendered||0),
+        };
+      });
+      assert.equal(measurements.horizontalOverflow,false,name+' must not overflow horizontally');
+      assert.ok(measurements.canvasWidth>250 && measurements.canvasHeight>250,name+' must display usable atlas');
+      assert.ok(measurements.headerVisible && measurements.chatVisible && measurements.modesVisible);
+      assert.ok(measurements.atlasNodes>0,name+' must render map nodes');
+      await comparison.screenshot({path:join(visualDir,'yatsumira-'+name+'.png'),fullPage:true});
+      console.log('[YATSUMIRA][VIEWPORT] '+name+' '+JSON.stringify(measurements));
+    }finally{await comparison.close();}
+  }
+
   // Reproducible visual measurements for comparing with the provided reference.
   const visualMetrics=await page.locator('#app').evaluate(canvas=>{
     const w=canvas.width,h=canvas.height;
@@ -224,6 +260,9 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(100);
   assert.equal(await page.locator('.chat-panel').count(),1);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+2),false,'Mobile viewport must not overflow horizontally');
+  const mobileAtlas=await page.locator('#app').boundingBox();
+  assert.ok(mobileAtlas && mobileAtlas.width>=300 && mobileAtlas.height>=250,'Mobile Canvas must remain usable');
   await page.screenshot({path:join(visualDir,'yatsumira-mobile.png'),fullPage:true});
   assert.deepEqual(errors,[]);
   console.log('[YATSUMIRA] Canvas, chat, responsive layout, console: OK');
