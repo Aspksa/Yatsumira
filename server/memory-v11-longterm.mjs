@@ -155,3 +155,29 @@ export function memoryAcrossSources(query,{limit=30}={}){
       note:"Source-specific search includes locally indexed memories; files must be ingested first"};
   });
 }
+
+/** Controlled recall for the chat: only manually reviewed preferences and active
+ * goals with active source memories; relevance filters avoid dumping unrelated history.
+ */
+export function longTermChatContext(query,{maxChars=800}={}){
+  const terms=new Set(memoryTokens(query));
+  if(!terms.size)return {text:"",entries:0};
+  const activeGoals=goals({limit:35}).filter(x=>x.status==="active");
+  const reviewed=preferences({reviewedOnly:true,limit:35});
+  const relevant=entry=>{
+    const words=memoryTokens(entry);
+    return words.some(w=>[...terms].some(t=>w.startsWith(t.slice(0,5))||t.startsWith(w.slice(0,5))));
+  };
+  const lines=[
+    ...activeGoals.filter(x=>relevant(x.title+" "+x.description)).map(x=>({text:"Цель: "+x.title,sourceId:x.sourceId})),
+    ...reviewed.filter(x=>relevant(x.key+" "+x.value+" "+x.context)).map(x=>({text:"Подтверждённое предпочтение: "+x.key+" = "+x.value,sourceId:x.sourceId}))
+  ];
+  const result=[];
+  let length=0;
+  for(const line of lines){
+    const rendered=line.text+" [источник: "+line.sourceId+"]";
+    if(length+rendered.length+1>Math.max(150,Math.min(1500,maxChars)))continue;
+    length+=rendered.length+1;result.push(rendered);
+  }
+  return {text:result.join("\n"),entries:result.length};
+}
