@@ -220,7 +220,115 @@ canvas.addEventListener("pointermove",(event:PointerEvent)=>{
 canvas.addEventListener("pointerleave",()=>{pointerX=-9999;pointerY=-9999;activeSector=-1;});
 requestAnimationFrame(frame);
 
-function addMessage(text:string,kind:"user"|"system"):void {
+
+type ChatMessage = { role: "user" | "assistant"; content: string };
+const history: ChatMessage[] = [];
+const cloudKey = document.querySelector<HTMLInputElement>("#cloud-key")!;
+const cloudSave = document.querySelector<HTMLButtonElement>("#cloud-save")!;
+const cloudLoad = document.querySelector<HTMLButtonElement>("#cloud-load")!;
+const cloudRemove = document.querySelector<HTMLButtonElement>("#cloud-remove")!;
+const cloudModel = document.querySelector<HTMLSelectElement>("#cloud-model")!;
+const cloudStatus = document.querySelector<HTMLElement>("#cloud-status")!;
+const connectionIndicator = document.querySelector<HTMLElement>("#connection-indicator")!;
+const modelIndicator = document.querySelector<HTMLElement>("#chat-model-indicator")!;
+const introStatus = document.querySelector<HTMLElement>("#chat-intro-status")!;
+const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+let connected = false;
+let selectedModel = "";
+let busy = false;
+
+async function requestApi<T>(path:string, options:RequestInit={}):Promise<T> {
+  const response = await fetch("/api/cloud/"+path,{
+    ...options,
+    headers: {"Content-Type":"application/json",...options.headers},
+    cache:"no-store",
+  });
+  let result: Record<string,unknown>;
+  try {result = await response.json() as Record<string,unknown>;}
+  catch {throw new Error("Некорректный ответ локального сервера");}
+  if (!response.ok) throw new Error(typeof result.error==="string" ? result.error : "Ошибка запроса");
+  return result as T;
+}
+function notify(message:string, error=false):void {
+  cloudStatus.textContent=message;
+  cloudStatus.classList.toggle("error",error);
+}
+function syncConnection():void {
+  const ready=connected && !!selectedModel;
+  connectionIndicator.textContent=ready ? "CLOUD.RU ONLINE" : connected ? "ВЫБЕРИТЕ МОДЕЛЬ" : "НЕ ПОДКЛЮЧЕНО";
+  connectionIndicator.classList.toggle("connected",ready);
+  modelIndicator.textContent=ready ? selectedModel : "МОДЕЛЬ НЕ ВЫБРАНА";
+  if (introStatus) introStatus.textContent=ready ? "Подключено к Cloud.ru" : "Подключите Cloud.ru в настройках";
+}
+async function refreshModels(savedModel=""):Promise<void> {
+  const response=await requestApi<{models:string[];selected:string}>("models");
+  cloudModel.replaceChildren();
+  const placeholder=new Option("Выберите модель","");cloudModel.add(placeholder);
+  for (const id of response.models) cloudModel.add(new Option(id,id));
+  const chosen=savedModel || response.selected;
+  selectedModel=response.models.includes(chosen) ? chosen : "";
+  cloudModel.value=selectedModel;
+  syncConnection();
+  notify(response.models.length ? "Доступно моделей: "+response.models.length : "Для этого ключа модели не найдены");
+}
+async function loadCloudConfig():Promise<void> {
+  try {
+    const data=await requestApi<{configured:boolean;persisted:boolean;model:string}>("config");
+    connected=data.configured;
+    selectedModel=data.model;
+    syncConnection();
+    if(connected) {
+      notify(data.persisted ? "Ключ сохранён на этом компьютере" : "Ключ доступен только в текущем сеансе");
+      await refreshModels(data.model);
+    } else notify("Введите API-ключ Cloud.ru и нажмите «Сохранить»");
+  } catch (err) {
+    connected=false;selectedModel="";syncConnection();
+    notify(err instanceof Error ? err.message : "Локальный API недоступен",true);
+  }
+}
+cloudSave.addEventListener("click",async()=>{
+  const key=cloudKey.value.trim();
+  if(key.length<8){notify("Введите действительный API-ключ",true);return;}
+  cloudSave.disabled=true;notify("Сохраняем ключ...");
+  try {
+    const saved=await requestApi<{configured:boolean;persisted:boolean}>("key",{method:"POST",body:JSON.stringify({key})});
+    cloudKey.value="";
+    connected=saved.configured;
+    selectedModel="";
+    history.length=0;
+    syncConnection();
+    notify(saved.persisted ? "Ключ защищён Windows DPAPI. Загружаем модели..." : "Ключ доступен до перезапуска сервера");
+    await refreshModels();
+  } catch(err){cloudKey.value="";notify(err instanceof Error?err.message:"Не удалось сохранить ключ",true);}
+  finally{cloudSave.disabled=false;}
+});
+cloudLoad.addEventListener("click",async()=>{
+  cloudLoad.disabled=true;notify("Загружаем модели Cloud.ru...");
+  try{await refreshModels();}
+  catch(err){notify(err instanceof Error?err.message:"Не удалось получить модели",true);}
+  finally{cloudLoad.disabled=false;}
+});
+cloudModel.addEventListener("change",async()=>{
+  const model=cloudModel.value;
+  if (!model) {notify("Выберите модель из списка",true);return;}
+  cloudModel.disabled=true;
+  try{
+    await requestApi("model",{method:"POST",body:JSON.stringify({model})});
+    selectedModel=model;history.length=0;syncConnection();notify("Модель выбрана: "+model);
+  }catch(err){cloudModel.value=selectedModel;notify(err instanceof Error?err.message:"Не удалось выбрать модель",true);}
+  finally{cloudModel.disabled=false;}
+});
+cloudRemove.addEventListener("click",async()=>{
+  cloudRemove.disabled=true;
+  try {
+    await requestApi("key",{method:"DELETE"});
+    connected=false;selectedModel="";history.length=0;cloudKey.value="";
+    cloudModel.replaceChildren(new Option("Сначала подключите Cloud.ru",""));
+    syncConnection();notify("Локальный ключ удалён");
+  }catch(err){notify(err instanceof Error?err.message:"Не удалось удалить ключ",true);}
+  finally{cloudRemove.disabled=false;}
+});
+function addMessage(text:string,kind:"user"|"system"|"assistant"):void {
   const intro=log!.querySelector(".chat-intro");
   if (intro) intro.remove();
   const el=document.createElement("div");
@@ -229,18 +337,33 @@ function addMessage(text:string,kind:"user"|"system"):void {
   log!.appendChild(el);
   log!.scrollTop=log!.scrollHeight;
 }
-function submitMessage():void {
-  const text=input!.value.trim();if(!text)return;
+async function submitMessage():Promise<void> {
+  if(busy)return;
+  const text=input!.value.trim();
+  if(!text)return;
+  if(!connected || !selectedModel){
+    addMessage("Сначала подключите Cloud.ru и выберите модель в настройках.","system");
+    return;
+  }
+  busy=true;submitButton.disabled=true;
   addMessage(text,"user");
-  input!.value="";
-  input!.style.height="auto";
-  addMessage("Чат пока работает в демонстрационном режиме. Подключение к API добавим следующим этапом.","system");
+  input!.value="";input!.style.height="auto";
+  const outgoing:ChatMessage[]=[...history,{role:"user",content:text}].slice(-29);
+  try{
+    const result=await requestApi<{answer:string}>("chat",{method:"POST",body:JSON.stringify({messages:outgoing})});
+    history.splice(0,history.length,...outgoing,{role:"assistant",content:result.answer});
+    if(history.length>28)history.splice(0,history.length-28);
+    addMessage(result.answer,"assistant");
+  }catch(err){
+    addMessage("Ошибка Cloud.ru: "+(err instanceof Error?err.message:"неизвестная ошибка"),"system");
+  }finally{busy=false;submitButton.disabled=false;input!.focus();}
 }
-form.addEventListener("submit",(e:SubmitEvent)=>{e.preventDefault();submitMessage();});
+form.addEventListener("submit",(e:SubmitEvent)=>{e.preventDefault();void submitMessage();});
 input.addEventListener("keydown",(e:KeyboardEvent)=>{
-  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitMessage();}
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();void submitMessage();}
 });
 input.addEventListener("input",()=>{
   input!.style.height="auto";
   input!.style.height=Math.min(input!.scrollHeight,130)+"px";
 });
+void loadCloudConfig();
