@@ -1,4 +1,4 @@
-import { drawNexusCore, drawNexusScaffold } from "./nexus-art";
+import { drawNexusCore, drawNexusScaffold, drawNexusGlyph, drawNexusGroupShapes } from "./nexus-art";
 import { placeNexus, type NexusMode, type NexusPlacement, type NexusPoint } from "./nexus-modes";
 export type NexusKind = "document" | "fact" | "agent";
 export type NexusNode = {
@@ -196,6 +196,7 @@ export class NexusView {
     const ease=1-Math.pow(1-progress,3);
     return {x:previous.x+(target.x-previous.x)*ease,y:previous.y+(target.y-previous.y)*ease};
   }
+  selectById(id:string):void { const node=this.layout.nodes.find(item=>item.id===id);if(node)this.select(node); }
   connectedTo(node:NexusNode):{node:NexusNode;strength:number}[] {
     return this.links.flatMap(link=>link.a.id===node.id?[{node:link.b,strength:link.strength}]:
       link.b.id===node.id?[{node:link.a,strength:link.strength}]:[]);
