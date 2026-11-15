@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=11;
+const SCHEMA=12;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -102,7 +102,15 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_v11_hierarchy(memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,parent_memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,relation TEXT NOT NULL CHECK(relation IN ('part_of','explains','derived_from')),created_at TEXT NOT NULL,PRIMARY KEY(memory_id,parent_memory_id,relation),CHECK(memory_id<>parent_memory_id))",
 "CREATE TABLE IF NOT EXISTS memory_v11_associations(from_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,to_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,relation TEXT NOT NULL CHECK(relation IN ('related','duplicate_candidate','temporal','causal_candidate','contradiction_candidate')),confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),created_at TEXT NOT NULL,PRIMARY KEY(from_id,to_id,relation),CHECK(from_id<>to_id))",
 "CREATE TABLE IF NOT EXISTS memory_v11_patterns(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('success','failure','generalization','reflection')),fingerprint TEXT NOT NULL UNIQUE,content TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'candidate' CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
-"CREATE TABLE IF NOT EXISTS memory_v11_pattern_sources(pattern_id TEXT NOT NULL REFERENCES memory_v11_patterns(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,PRIMARY KEY(pattern_id,memory_id))"
+"CREATE TABLE IF NOT EXISTS memory_v11_pattern_sources(pattern_id TEXT NOT NULL REFERENCES memory_v11_patterns(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,PRIMARY KEY(pattern_id,memory_id))",
+"CREATE TABLE IF NOT EXISTS memory_v12_lessons(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('success','failure','reflection','analogy','counterfactual','strategy','hypothesis','correction')),fingerprint TEXT NOT NULL UNIQUE,description TEXT NOT NULL,score REAL NOT NULL DEFAULT 0 CHECK(score BETWEEN 0 AND 1),state TEXT NOT NULL DEFAULT 'candidate' CHECK(state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_v12_lesson_sources(lesson_id TEXT NOT NULL REFERENCES memory_v12_lessons(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,PRIMARY KEY(lesson_id,memory_id))",
+"CREATE INDEX IF NOT EXISTS idx_v12_lessons_kind ON memory_v12_lessons(kind,state)",
+"CREATE TABLE IF NOT EXISTS memory_v12_feedback(id TEXT PRIMARY KEY,query TEXT NOT NULL,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('useful','incorrect','irrelevant','correction')),evidence TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE INDEX IF NOT EXISTS idx_v12_feedback_memory ON memory_v12_feedback(memory_id,kind)",
+"CREATE TABLE IF NOT EXISTS memory_v12_search_profiles(name TEXT PRIMARY KEY,params_json TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'candidate' CHECK(state IN ('candidate','approved','rejected')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_v12_learning_runs(id TEXT PRIMARY KEY,job TEXT NOT NULL,report_json TEXT NOT NULL,source_count INTEGER NOT NULL,created_at TEXT NOT NULL)",
+"CREATE INDEX IF NOT EXISTS idx_v12_runs_job ON memory_v12_learning_runs(job,created_at)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
