@@ -68,3 +68,20 @@ The local endpoints are `GET /api/knowledge/graph` and `POST /api/knowledge/inge
 ## Layout matched to the supplied radial atlas reference
 
 The NEXUS visual design places a small concentric core in the middle, dense luminous rectangular data points on the inner six rings, a deliberately quiet caption-and-connection band, and outlined circular icons on the outer two orbital rings. Radial filaments, low-opacity sector boundaries and restrained colored labels reproduce the spatial hierarchy of the supplied reference while preserving YATSUMIRA's own categories and live data. No screenshot is used as a static background: the graph remains rendered through TypeScript Canvas, supports pan, zoom, node selection, adaptive LOD and growth when local knowledge is added.
+
+## NEXUS visualization modes and source-aware cards
+
+The Canvas toolbar offers four real interactive layouts:
+
+- **Кольца** — radial atlas with different vector glyphs on the outer orbit, denser inner blocks, fine links, and labels near growing topic groups.
+- **Круг** — circular arrangement of sector/topic clusters.
+- **Соты** — hexagonal boundaries and a staggered packing of clustered nodes.
+- **Силовой** — bounded, deterministic group-level force relaxation. Known lexical links attract related groups; unrelated groups repel.
+  
+The selected layout is saved in browser local storage. Wheel zoom, panning, focus/Enter selection, culling and adaptive rendering remain enabled. At higher zoom levels, node titles and selected-note excerpts become visible.
+
+A selected real record card shows its original text, topic group, sector, provenance (local note or dialogue), verification status, creation date when available, record ID, and clickable related records. A highlighted line indicates an existing lexical relationship; dashed structural links indicate **group membership**, not verified semantic relationships. Placeholder decorations are labeled **ДЕМО** and never masquerade as files.
+
+New records stored in `.yatsumira/knowledge.json` get topic group labels derived from the first two significant words. Different topics create separate clusters, including within the main radial view. This classification is intentionally simple; semantic clustering, file upload/extraction, document metadata and RAG are future integrations.
+
+The existing single-screen black chat, Cloud.ru connector, local-only server and Windows BAT remain unchanged.
