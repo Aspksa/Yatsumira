@@ -7,9 +7,10 @@ import {inspectMemoryV5} from "./memory-v5-health.mjs";
 import {recallMemory} from "./long-memory.mjs";
 import {graphQuality} from "./memory-v5-reasoning.mjs";
 import {memoryGaps,experiencePatterns} from "./memory-v8-learning.mjs";
+import {discoverGraphLinks,graphAnomalyReview} from "./memory-v10-discovery.mjs";
 const stamp=()=>new Date().toISOString();
 const tx=fn=>withCoreDatabase(db=>{db.exec("BEGIN IMMEDIATE");try{const out=fn(db);db.exec("COMMIT");return out;}catch(e){db.exec("ROLLBACK");throw e;}});
-const types=new Set(["health","graph-audit","experience-patterns","knowledge-gaps"]);
+const types=new Set(["health","graph-audit","experience-patterns","knowledge-gaps","v10-link-discovery","v10-anomaly-review"]);
 export function scheduleMemoryJob(kind,payload={},scheduledAt=stamp()){
   if(!types.has(kind))throw Error("Unsupported memory job");
   const content=JSON.stringify(payload);
@@ -42,7 +43,9 @@ export function runMemoryJob({handlers={},now=stamp(),maxAttempts=3}={}){
       health:()=>inspectMemoryV5(),
       "graph-audit":()=>graphQuality(),
       "experience-patterns":()=>experiencePatterns({limit:20}),
-      "knowledge-gaps":()=>memoryGaps(typeof payload.query==="string"?payload.query.slice(0,300):"unanswered questions")
+      "knowledge-gaps":()=>memoryGaps(typeof payload.query==="string"?payload.query.slice(0,300):"unanswered questions"),
+      "v10-link-discovery":()=>discoverGraphLinks({limit:12,persist:true}),
+      "v10-anomaly-review":()=>graphAnomalyReview({limit:40,persist:true})
     };
     const handler=handlers[job.job_type]||operations[job.job_type];
     if(!handler)throw Error("Unknown handler");
