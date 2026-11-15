@@ -6,7 +6,7 @@ import {withCoreDatabase,addKnowledge,saveExchange,coreStatus} from "../server/c
 import {recallMemory} from "../server/long-memory.mjs";
 import {storeEmbedding,vectorRecall,vectorOverview,reciprocalFusion,rerankCandidates} from "../server/memory-vectors.mjs";
 import {embedText,indexMissingEmbeddings,hybridRecall,rerankWithProvider} from "../server/memory-provider.mjs";
-import {extractCandidates,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors} from "../server/memory-intelligence.mjs";
+import {extractCandidates,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors,memoryLayers} from "../server/memory-intelligence.mjs";
 import {consolidateStep,summarizeConversation,memoryMaintenanceStatus,evaluateRetrieval,recordRetrievalEvaluation} from "../server/memory-maintenance.mjs";
 
 const savedCwd=process.cwd();
@@ -41,6 +41,8 @@ try{
   const overview=memoryMaintenanceStatus();
   assert.ok(overview.entities>=2);
   assert.ok(overview.pendingConflicts>=1);
+  assert.ok(memoryLayers().counts.semantic>=2);
+  assert.equal(memoryLayers().counts.episodic,0);
   assert.ok(overview.jobs.some(j=>j.name==="facts-and-entities"));
 
   assert.deepEqual(vectorOverview(),[]);
@@ -94,6 +96,7 @@ try{
   for(const name of vars)delete process.env[name];
 
   for(let i=0;i<4;i++)saveExchange({conversationId:"default",exchangeId:"summary-"+i,user:"Я проверяю условия договора поставки "+i,assistant:"Тестовый ответ модели "+i,model:"test/model"});
+  assert.ok(memoryLayers().counts.episodic>=4);
   const summary=summarizeConversation({conversationId:"default"});
   assert.equal(summary.created,true);
   const summaries=withCoreDatabase(db=>db.prepare("SELECT summary,source_count FROM memory_summaries").all());
