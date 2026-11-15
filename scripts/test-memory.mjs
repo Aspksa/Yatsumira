@@ -45,7 +45,7 @@ try{
   assert.equal(retractMemory(replaced.id).retracted,true);
   assert.equal(retractMemory(replaced.id).retracted,false);
   assert.ok(!recallMemory("новый порядок согласования закупок").some(x=>x.id===replaced.id));
-  const links=withCoreDatabase(db=>db.prepare("SELECT relation FROM memory_links WHERE from_id=? AND to_id=?").get(replaced.id,manual.id));
+  const links=withCoreDatabase(db=>db.prepare("SELECT relation FROM memory_links WHERE from_id=? AND to_id=? AND relation='supersedes'").get(replaced.id,manual.id));
   assert.equal(links.relation,"supersedes");
   // Never reuse a secret as recall content, even when it is in a manually saved note.
   const secret="API_KEY: sk-very-private-token-1234567890";
