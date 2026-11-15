@@ -60,7 +60,7 @@ try {
   const status=coreStatus();
   assert.deepEqual({version:status.version,storage:status.storage,knowledge:status.knowledge,
     conversations:status.conversations,messages:status.messages},
-    {version:2,storage:"sqlite",knowledge:3,conversations:1,messages:2});
+    {version:3,storage:"sqlite",knowledge:3,conversations:1,messages:2});
   const foreignKey=withCoreDatabase(db=>db.prepare("PRAGMA foreign_keys").get().foreign_keys);
   assert.equal(foreignKey,1);
 
