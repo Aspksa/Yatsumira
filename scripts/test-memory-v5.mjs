@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {extractionConfigured,requestStructuredExtraction,extractMemoryUsingProvider} from "../server/memory-v5-provider.mjs";
-import {inspectMemoryV5,assertMemoryHealthy} from "../server/memory-v5-health.mjs";
+import {inspectMemoryV5,assertMemoryHealthy,maybeRecordMemoryHealth} from "../server/memory-v5-health.mjs";
 
 import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
@@ -137,6 +137,9 @@ try{
   assert.equal(health.ok,true,JSON.stringify(health.errors));
   assert.ok(health.structures.hyperedges>=1);
   assert.equal(assertMemoryHealthy().ok,true);
+  assert.equal(maybeRecordMemoryHealth().performed,true);
+  assert.equal(maybeRecordMemoryHealth().performed,false);
+  assert.equal(withCoreDatabase(db=>db.prepare("SELECT COUNT(*) AS n FROM memory_quality_runs WHERE kind=\'sqlite-health\'").get().n),1);
 
   assert.equal(withCoreDatabase(db=>db.prepare("PRAGMA integrity_check").get().integrity_check),"ok");
   console.log("[YATSUMIRA CORE v5] universal aliases, decisions, task checkpoints, hyperedges, PageRank, evidence audit, extraction, incremental index: OK");
