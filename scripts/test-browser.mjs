@@ -112,12 +112,14 @@ try {
   await page.locator('#knowledge-add').click();
   await page.getByText(/Новая информация сохранена/).waitFor();
   await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeGrowth);
+  const beforeSecond=Number(await page.locator('#app').getAttribute('data-knowledge'));
   await page.locator('#knowledge-text').fill('Новая информация: договор поставки и граф оплаты NEXUS');
   await page.locator('#knowledge-add').click();
-  await page.getByText(/Новая информация сохранена/).waitFor();
+  await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeSecond);
+  const beforeThird=Number(await page.locator('#app').getAttribute('data-knowledge'));
   await page.locator('#knowledge-text').fill('Дополнительные сведения о работе отдельных агентов');
   await page.locator('#knowledge-add').click();
-  await page.getByText(/Новая информация сохранена/).waitFor();
+  await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeThird);
   await page.waitForFunction(()=>Number(document.querySelector('#app')?.dataset.groupCount)>=2);
   const savedGraph=await page.evaluate(async()=>{
     const response=await fetch('/api/knowledge/graph');
