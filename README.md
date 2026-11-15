@@ -54,7 +54,7 @@ Automated browser tests cover layout, node separation, density-weighted sectors,
 
 ## NEXUS growth and persistence
 
-New information is saved locally in `.yatsumira/knowledge.json`, which is excluded from Git and stays with your project (including on an external USB drive).
+New information is saved locally in `.yatsumira/yatsumira.sqlite`, which is excluded from Git and stays with your project (including on an external USB drive).
 
 - Go to **Настройки → Развитие NEXUS**, choose a category and add a note. The graph updates immediately.
 - When a Cloud.ru chat exchange succeeds, the user's message is recorded as a **non-verified conversation note** (not a verified fact); the AI answer is not automatically accepted as truth.
@@ -82,7 +82,7 @@ The selected layout is saved in browser local storage. Wheel zoom, panning, focu
 
 A selected real record card shows its original text, topic group, sector, provenance (local note or dialogue), verification status, creation date when available, record ID, and clickable related records. A highlighted line indicates an existing lexical relationship; dashed structural links indicate **group membership**, not verified semantic relationships. Placeholder decorations are labeled **ДЕМО** and never masquerade as files.
 
-New records stored in `.yatsumira/knowledge.json` get topic group labels derived from the first two significant words. Different topics create separate clusters, including within the main radial view. This classification is intentionally simple; semantic clustering, file upload/extraction, document metadata and RAG are future integrations.
+New records stored in `.yatsumira/yatsumira.sqlite` get topic group labels derived from the first two significant words. Different topics create separate clusters, including within the main radial view. This classification is intentionally simple; semantic clustering, file upload/extraction, document metadata and RAG are future integrations.
 
 The existing single-screen black chat, Cloud.ru connector, local-only server and Windows BAT remain unchanged.
 
@@ -96,3 +96,31 @@ The default **Кольца** view now uses a deterministic reference-style layou
 - Ultra-fine filaments from the inner clusters to the outer orbit, restrained halos, and separated captions.
 
 This is an original programmatic Canvas rendering inspired by the supplied screenshot, **not** a screenshot background. It maintains hover/click accuracy through shared transformed positions, live local knowledge overlays, growth, pan/zoom, FPS adaptation, and all four modes. No Cloud.ru keys, chatbot configuration, or local knowledge files are modified by the design update.
+
+## YATSUMIRA CORE v1 — local programmatic core and SQLite database
+
+**No additional UI controls are introduced in CORE v1.** The existing NEXUS Canvas, black chat, Cloud.ru settings and four visualization modes remain as before.
+
+The project now requires **Node.js 22 or newer** because it uses the built-in `node:sqlite` module. The Windows BAT/PowerShell launcher checks for a compatible Node installation and can obtain an official portable Node LTS version. No Python, Docker, PostgreSQL, or native SQLite npm addons are needed.
+
+Persistent storage resides alongside the project in `.yatsumira/yatsumira.sqlite` (including when the project is on USB). The database contains:
+- `core_meta`: schema version, import state, knowledge revision
+- `knowledge`: unique, source-labeled notes and knowledge objects
+- `knowledge_links`: lexical relationships and strength
+- `conversations`: sessions
+- `messages`: user/assistant exchanges saved **atomically** in one transaction
+- `core_events`: local event history for tracing core operations
+
+SQLite uses foreign key constraints, full synchronous durability, rollback-journal mode (rather than persistent WAL files), and a five-second busy timeout. A single-user localhost process owns the database. API requests are restricted to the existing loopback/origin protections.
+
+**Existing knowledge migration:** If `.yatsumira/knowledge.json` exists, first database access imports its records, links and revision into SQLite in a transaction. The original JSON file is **never deleted or overwritten**; retain it as a backup. A malformed legacy source blocks the import rather than silently wiping data. Future restarts do not import it again. New data is saved only in SQLite. Make a backup of the `.yatsumira` directory before changing Node versions or relocating the project.
+
+**Cloud.ru integration:** The cloud proxy saves the last user message and the model's answer together only after a successful provider response. The server does not automatically classify model output as a verified fact or silently inject unverified notes into Cloud.ru prompts. Existing chat visuals are unchanged. Earlier messages from previous versions cannot be reconstructed if they were never saved by the old server.
+
+**Backend-only endpoints** (no new UI):
+- `GET /api/core/status` — schema version and counts without exposing secrets
+- `GET /api/core/history?limit=50` — persisted dialogue turns
+- `GET /api/core/search?q=...` — baseline lexical lookup over stored notes
+- `GET /api/knowledge/graph`, `POST /api/knowledge/ingest` — existing compatible endpoints, now backed by SQLite
+
+This is infrastructure for later semantic memory, document RAG, legal agents and schedulers; it is **not** autonomous learning or a vector database yet. CORE tests run on Windows and Linux with temporary databases, migration fixtures, deduplication and exchange transaction checks.
