@@ -25,7 +25,13 @@ globalThis.fetch = async (url, opts) => {
       const body = JSON.parse(opts.body);
       assert.equal(body.model,"test/large");
       assert.equal(body.messages[0].role,"system");
-      assert.equal(body.messages.at(-1).content,"Привет");
+      const prompt=body.messages.at(-1).content;
+      if(prompt.includes("срок оплаты")){
+        assert.ok(body.messages.some(m=>m.role==="system" && m.content.includes("сорок пять дней")),
+          "Server should inject relevant long-term memory with provenance");
+      }else{
+        assert.equal(prompt,"Привет");
+      }
       return new Response(JSON.stringify({choices:[{message:{content:"Тестовый ответ"}}]}), {
         status:200,headers:{"Content-Type":"application/json"}
       });
@@ -75,6 +81,21 @@ try {
   const searchResponse=await originalFetch(new URL("/api/core/search?q=%D0%B4%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D1%80",base));
   assert.equal(searchResponse.status,200);
   assert.equal((await searchResponse.json()).mode,"lexical");
+  const note=await originalFetch(new URL("/api/knowledge/ingest",base),{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({content:"По договору поставки срок оплаты сорок пять дней",sector:1,source:"note"})
+  });
+  assert.equal(note.status,201);
+  const memoryResponse=await originalFetch(new URL("/api/core/memory/search?q=срок%20оплаты%20договора",base));
+  assert.equal(memoryResponse.status,200);
+  const memoryResult=await memoryResponse.json();
+  assert.equal(memoryResult.mode,"hybrid-fts5-subword");
+  assert.ok(memoryResult.results.some(row=>row.content.includes("сорок пять дней")));
+  const memoryChat=await api("chat","POST",{messages:[{role:"user",content:"Какой срок оплаты по договору поставки?"}]});
+  assert.equal(memoryChat.status,200);
+  const summary=await originalFetch(new URL("/api/core/memory/status",base));
+  assert.equal(summary.status,200);
+  assert.ok((await summary.json()).active>=1);
   assert.ok(requestCount>=3);
   console.log("[YATSUMIRA] Cloud.ru proxy API mocked contract tests: OK");
 } finally {
