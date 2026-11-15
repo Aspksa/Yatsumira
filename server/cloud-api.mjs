@@ -1,3 +1,4 @@
+import { recallMemory, makeMemoryContext, memoryOverview } from "./long-memory.mjs";
 import { handleKnowledge } from "./knowledge-api.mjs";
 import {coreOverview,conversationHistory,lookupKnowledge,commitAssistantExchange,validateChatMessages} from "./core-engine.mjs";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync, unlinkSync } from "node:fs";
@@ -118,6 +119,12 @@ export function cloudApiPlugin() {
             const query=(u.searchParams.get("q")||"").slice(0,500);
             return json(res,200,{results:lookupKnowledge(query,20),mode:"lexical"});
           }
+          if (pathname === "/api/core/memory/status" && req.method === "GET")
+            return json(res,200,memoryOverview());
+          if (pathname === "/api/core/memory/search" && req.method === "GET") {
+            const query=new URL(req.url,"http://127.0.0.1").searchParams.get("q")||"";
+            return json(res,200,{results:recallMemory(query,{limit:12}),mode:"hybrid-fts5-subword"});
+          }
           if (pathname === "/api/cloud/config" && req.method === "GET") {
             return json(res,200,{configured:!!getKey(),persisted:existsSync(KEY_FILE),model:settings().model});
           }
@@ -161,7 +168,11 @@ export function cloudApiPlugin() {
             if (!validateChatMessages(input.messages)) {
               return json(res,400,{error:"Неверный формат сообщений"});
             }
-            const messages = [{ role:"system",content:ASSISTANT },...input.messages];
+            // Retrieve only bounded, relevant user-originated excerpts; no AI answer is silently learned as truth.
+            const recalled=makeMemoryContext(input.messages.at(-1).content,{maxChars:2500,limit:7});
+            const messages = [{ role:"system",content:ASSISTANT },
+              ...(recalled.text?[{role:"system",content:recalled.text}]:[]),
+              ...input.messages];
             const response = await cloudRequest("/chat/completions",key,{method:"POST",data:{model,messages,stream:false}});
             const answer = response?.choices?.[0]?.message?.content;
             if (typeof answer !== "string" || !answer.trim()) return json(res,502,{error:"Cloud.ru вернул пустой ответ"});
