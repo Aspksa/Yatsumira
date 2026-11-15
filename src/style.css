@@ -81,3 +81,29 @@ canvas { display:block; width:100%; height:100%; background:transparent; }
   .settings-trigger {padding:9px;}
   .brand-sub {display:none;}
 }
+
+/* Pure-black unified chat canvas, without a separate pane/card surface. */
+:root {color-scheme:dark;}
+.chat-panel, .chat-header, .chat-body, .chat-footer { background:#000!important; }
+.chat-panel { border-left:1px solid #102021; }
+.chat-header { border-bottom:1px solid #102021; }
+.chat-intro .intro-glyph { background:#000; }
+.message { background:#060a0a; border-color:#182b2a; }
+.message.user { background:#09201d; border-color:#21433e; }
+.composer { background:#050808; border-color:#1a3431; }
+.composer textarea { background:transparent; }
+.settings-panel { max-height:min(80vh,720px); overflow-y:auto; scrollbar-width:thin; }
+.cloud-section { margin-top:24px; border-top:1px solid #22433c;padding-top:20px; }
+.cloud-section h2 {font-size:13px;font-weight:650;letter-spacing:.06em;margin:0 0 8px;color:#d9f7eb;}
+.cloud-help {color:#7a9e9a;font-size:11px;line-height:1.55;margin:0 0 15px;}
+.cloud-secret-row {display:flex;gap:7px;align-items:stretch;}
+.cloud-secret-row input {width:100%;min-width:0;background:#030909;border:1px solid #31524d;border-radius:6px;color:#dbf3eb;padding:10px;font-size:12px;}
+.cloud-secret-row button,.cloud-actions button {background:#102521;border:1px solid #315b51;color:#b6e5da;border-radius:6px;padding:10px;font-size:11px;cursor:pointer;}
+.cloud-secret-row button:hover,.cloud-actions button:hover {background:#194039;}
+.cloud-actions {display:flex;gap:8px;margin:9px 0 12px;}
+.cloud-actions button {flex:1;}
+.cloud-section select {width:100%;padding:10px;background:#030909;border:1px solid #31524d;border-radius:6px;color:#d3efe7;font-size:12px;min-width:0;}
+.cloud-status {margin-top:12px;color:#83c8b6;font-size:11px;line-height:1.5;overflow-wrap:anywhere;}
+.cloud-status.error {color:#ef9994;}
+.connection-indicator.connected {border-color:#28695b;color:#73dfc8;}
+.composer button:disabled {opacity:.45;cursor:wait;}
