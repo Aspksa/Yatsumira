@@ -52,7 +52,7 @@ export function analyzeMemoryQuestion(query,{limit=8}={}){
     const lexical=recallMemory(q,{limit:20});
     const graph=graphRecall(q,{limit:10,hops:3});
     const ranked=plan.graph?personalizedGraphRank(q,{limit:10}):[];
-    for(const [items,weight,method] of [[lexical,1,"lexical"],[graph,.85,"graph"],[rank,.8,"pagerank"]]){
+    for(const [items,weight,method] of [[lexical,1,"lexical"],[graph,.85,"graph"],[ranked,.8,"pagerank"]]){
       items.forEach((item,i)=>{
         const current=ids.get(item.id)||{...item,rankScore:0,methods:new Set(),supportingQueries:new Set()};
         current.rankScore+=weight/(60+i+1);
