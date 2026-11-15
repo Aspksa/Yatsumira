@@ -2,10 +2,13 @@ export type NexusKind = "document" | "fact" | "agent";
 export type NexusNode = {
   id: string; title: string; kind: NexusKind; sector: number;
   ring: number; importance: number; x: number; y: number; radius: number;
+  actual?: boolean; content?: string; source?: string; verified?: boolean;
 };
 export type NexusSector = { title: string; count: number; start: number; end: number; color: string };
 export type NexusLayout = { nodes: NexusNode[]; sectors: NexusSector[]; rings: number[] };
-export type NexusStats = { fps: number; drawn: number; total: number; detail: string };
+export type NexusStats = { fps: number; drawn: number; total: number; detail: string; knowledge: number; links: number };
+export type KnowledgeRecord = { id:string; title:string; content:string; sector:number; kind:"fact"|"document"|"agent"; importance:number; source:string; verified:boolean };
+export type KnowledgeLink = { source:string; target:string; kind:string; strength:number };
 
 const TWO_PI = Math.PI * 2;
 const RINGS = [94, 132, 170, 208, 246, 284, 322, 360];
@@ -96,6 +99,8 @@ export class NexusView {
   readonly canvas: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
   private layout = buildNexusLayout();
+  private realNodes: NexusNode[] = [];
+  private links: {a:NexusNode;b:NexusNode;strength:number}[] = [];
   private readonly onSelect: (node: NexusNode) => void;
   private width = 1;
   private height = 1;
@@ -118,7 +123,7 @@ export class NexusView {
   private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   private selectedId: string | null = null;
   speed = 1;
-  stats: NexusStats = { fps: 60, drawn: 0, total: 0, detail:"normal" };
+  stats: NexusStats = { fps: 60, drawn: 0, total: 0, detail:"normal", knowledge:0, links:0 };
 
   constructor(canvas: HTMLCanvasElement, onSelect: (node: NexusNode) => void) {
     const context = canvas.getContext("2d", { alpha:false });
