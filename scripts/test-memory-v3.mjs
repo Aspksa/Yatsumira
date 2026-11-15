@@ -6,7 +6,7 @@ import {withCoreDatabase,addKnowledge,saveExchange,coreStatus} from "../server/c
 import {recallMemory} from "../server/long-memory.mjs";
 import {storeEmbedding,vectorRecall,vectorOverview,reciprocalFusion,rerankCandidates} from "../server/memory-vectors.mjs";
 import {embedText,indexMissingEmbeddings,hybridRecall,rerankWithProvider} from "../server/memory-provider.mjs";
-import {extractCandidates,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors,memoryLayers} from "../server/memory-intelligence.mjs";
+import {extractCandidates,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors,memoryLayers,reviewCandidateFact,resolveMemoryConflict} from "../server/memory-intelligence.mjs";
 import {consolidateStep,summarizeConversation,memoryMaintenanceStatus,evaluateRetrieval,recordRetrievalEvaluation} from "../server/memory-maintenance.mjs";
 
 const savedCwd=process.cwd();
@@ -30,6 +30,12 @@ try{
   const conflicts=pendingConflicts();
   assert.ok(conflicts.length>=1,"Different payment values for same contract must create review candidates");
   assert.ok(conflicts.every(x=>x.review_state==="pending"),"Conflicts not silently resolved");
+  assert.throws(()=>reviewCandidateFact(pending[0].id,{decision:"reviewed"}),/evidence/);
+  assert.throws(()=>resolveMemoryConflict(conflicts[0].id,{decision:"resolved"}),/rationale/);
+  assert.equal(reviewCandidateFact(pending[0].id,{decision:"reviewed",evidence:"Проверено по подписанному оригиналу договора"}).decision,"reviewed");
+  assert.equal(resolveMemoryConflict(conflicts[0].id,{decision:"dismissed",note:"Условия относятся к разным редакциям; нужна проверка"}).decision,"dismissed");
+  assert.equal(pendingConflicts().length,conflicts.length-1);
+
   const graph=withCoreDatabase(db=>db.prepare("SELECT id FROM memory_entries WHERE source_kind='knowledge' ORDER BY rowid").all());
   assert.equal(graph.length,2);
   assert.ok(memoryNeighbors(graph[0].id).some(n=>n.id===graph[1].id));
