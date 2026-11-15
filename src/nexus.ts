@@ -340,15 +340,28 @@ export class NexusView {
       ctx.lineTo(Math.cos(sector.start)*367,Math.sin(sector.start)*367);
       ctx.strokeStyle=sector.color;ctx.globalAlpha=.13;ctx.lineWidth=.8;ctx.stroke();ctx.globalAlpha=1;
     }
+    if(this.quality>.35){
+      const maxEdges=this.quality>.9?900:200;
+      let count=0;
+      for(const link of this.links){
+        if(count++>=maxEdges)break;
+        if(Math.max(link.a.x,link.b.x)<viewLeft||Math.min(link.a.x,link.b.x)>viewRight||
+          Math.max(link.a.y,link.b.y)<viewTop||Math.min(link.a.y,link.b.y)>viewBottom)continue;
+        ctx.beginPath();ctx.moveTo(link.a.x,link.a.y);ctx.lineTo(link.b.x,link.b.y);
+        ctx.strokeStyle="#4bd4c4";ctx.globalAlpha=Math.min(.32,.09+link.strength*.035);
+        ctx.lineWidth=.7;ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+    }
     let drawn=0;
     const lod = this.zoom<.95?3:this.zoom<1.45?2:1;
     const detail = this.quality<.5?"low":this.quality<.9?"medium":"high";
     for(const node of this.layout.nodes){
       // View-frustum culling before any paths, gradients or style changes.
       if(node.x+7<viewLeft || node.x-7>viewRight || node.y+7<viewTop || node.y-7>viewBottom)continue;
-      if(lod===3 && node.importance===1)continue;
-      if(lod===2 && node.importance===1 && node.ring%2===0)continue;
-      if(this.quality<.5 && node.importance===1 && node.ring%2===0)continue;
+      if(!node.actual && lod===3 && node.importance===1)continue;
+      if(!node.actual && lod===2 && node.importance===1 && node.ring%2===0)continue;
+      if(!node.actual && this.quality<.5 && node.importance===1 && node.ring%2===0)continue;
       const color=this.layout.sectors[node.sector].color;
       const selected=node.id===this.selectedId;
       const hovered=node.id===this.hovered?.id;
@@ -356,12 +369,12 @@ export class NexusView {
       const r=node.radius+(selected?2:hovered?1.4:0);
       ctx.beginPath();
       ctx.arc(node.x,node.y,r,0,TWO_PI);
-      ctx.fillStyle=color;ctx.globalAlpha=Math.max(.36,.62+pulse);
-      if(this.quality>.9&&(selected||hovered)) {
+      ctx.fillStyle=color;ctx.globalAlpha=node.actual?1:Math.max(.25,.4+pulse);
+      if(this.quality>.9&&(selected||hovered||node.actual)) {
         ctx.shadowBlur=12;ctx.shadowColor=color;
       }
       ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
-      if(node.importance>=2 && this.quality>.5 && this.zoom>1.15) this.circle(node.x,node.y,r+2,color,.42);
+      if((node.actual||node.importance>=2) && this.quality>.5 && this.zoom>1.15) this.circle(node.x,node.y,r+2,color,node.actual?.9:.42);
       drawn++;
     }
     // Central system core.
@@ -372,12 +385,14 @@ export class NexusView {
       ctx.fillStyle="#a7ecdf";ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="10px Consolas, monospace";ctx.fillText("八",0,0);
     }
     ctx.restore();
-    this.stats={fps:Math.round(this.fps),drawn,total:this.layout.nodes.length,detail};
+    this.stats={fps:Math.round(this.fps),drawn,total:this.layout.nodes.length,detail,knowledge:this.realNodes.length,links:this.links.length};
     this.canvas.dataset.rendered=String(drawn);
     this.canvas.dataset.total=String(this.layout.nodes.length);
     this.canvas.dataset.quality=detail;
     this.canvas.dataset.zoom=this.zoom.toFixed(3);
     this.canvas.dataset.panX=this.panX.toFixed(1);
+    this.canvas.dataset.knowledge=String(this.realNodes.length);
+    this.canvas.dataset.links=String(this.links.length);
     requestAnimationFrame(t=>this.frame(t));
   }
 }
