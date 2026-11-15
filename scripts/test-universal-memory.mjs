@@ -51,7 +51,7 @@ try{
   const y=assertGraphRelation({memoryId:mb,subject:"Аппарат К-5",subjectType:"device",
     predicate:"color",object:"синий",objectType:"value",exclusive:true,validFrom:"2025-01-01"});
   assert.equal(x.stored,true);assert.equal(y.conflicts,1);
-  assert.equal(assertGraphRelation({memoryId:b.id,subject:"Аппарат К-5",subjectType:"device",
+  assert.equal(assertGraphRelation({memoryId:mb,subject:"Аппарат К-5",subjectType:"device",
     predicate:"color",object:"синий",objectType:"value",exclusive:true,validFrom:"2025-01-01"}).stored,false);
   const earlier=graphClaims({asOf:"2024-06-01"});
   assert.ok(earlier.some(item=>item.subject==="Аппарат К-5"&&item.object==="красный"));
@@ -60,7 +60,7 @@ try{
   // No cross-domain false contradiction for a multi-valued predicate.
   assertGraphRelation({memoryId:mc,subject:"Аппарат К-5",predicate:"uses",
     object:"Bluetooth",validFrom:"2024-01-01"});
-  assertGraphRelation({memoryId:a.id,subject:"Аппарат К-5",predicate:"uses",
+  assertGraphRelation({memoryId:ma,subject:"Аппарат К-5",predicate:"uses",
     object:"Wi-Fi",validFrom:"2024-01-01"});
   assert.equal(graphOverview().pendingConflicts,1);
   const feedback=recordMemoryFeedback(ma,"useful");
