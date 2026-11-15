@@ -191,6 +191,8 @@ export function coreStatus(){
     links:db.prepare("SELECT COUNT(*) AS n FROM knowledge_links").get().n,
     conversations:db.prepare("SELECT COUNT(*) AS n FROM conversations").get().n,
     messages:db.prepare("SELECT COUNT(*) AS n FROM messages").get().n,
-    revision:revision(db)
+    revision:revision(db),
+    memory:db.prepare("SELECT COUNT(*) AS n FROM memory_entries WHERE state='active'").get().n,
+    memoryLinks:db.prepare("SELECT COUNT(*) AS n FROM memory_links").get().n
   }));
 }
