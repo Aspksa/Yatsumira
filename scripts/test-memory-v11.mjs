@@ -17,7 +17,7 @@ import {
 const cwd=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-v11-"));
 try{
   process.chdir(root);
-  assert.equal(coreStatus().version,11);
+  assert.equal(coreStatus().version,12);
   const a=addKnowledge({content:"«Проект Заря» использует «Модуль Омега». Работы продолжаются.",source:"note",sector:0});
   const b=addKnowledge({content:"«Модуль Омега» находится в «Лаборатория Север». Система готова.",source:"note",sector:1});
   const c=addKnowledge({content:"«Инженер Лира» проверяет «Проект Заря». Работы завершены.",source:"note",sector:2});
