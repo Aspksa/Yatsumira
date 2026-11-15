@@ -46,7 +46,7 @@ try{
   assert.ok(researchEntities("ООО «ТехПроект», договор № АБ-1").some(x=>x.kind==="organization"));
   const overview=memoryMaintenanceStatus();
   assert.ok(overview.entities>=2);
-  assert.ok(overview.pendingConflicts>=1);
+  assert.equal(overview.pendingConflicts,conflicts.length-1,"Reviewed conflicts leave the pending queue");
   assert.ok(memoryLayers().counts.semantic>=2);
   assert.equal(memoryLayers().counts.episodic,0);
   assert.ok(overview.jobs.some(j=>j.name==="facts-and-entities"));
