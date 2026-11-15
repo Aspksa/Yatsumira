@@ -153,8 +153,15 @@ export function saveExchange({conversationId="default",exchangeId=randomUUID(),u
       return {conversationId,exchangeId,stored:false};
     }
     const insert=db.prepare("INSERT INTO messages(id,conversation_id,exchange_id,role,content,model,created_at) VALUES(?,?,?,?,?,?,?)");
-    insert.run(randomUUID(),conversationId,exchangeId,"user",user,model,date);
+    const userId=randomUUID();
+    insert.run(userId,conversationId,exchangeId,"user",user,model,date);
     insert.run(randomUUID(),conversationId,exchangeId,"assistant",assistant,model,date);
+    if(eligibleEpisode(user)){
+      indexMemory(db,{sourceKind:"dialogue",sourceId:userId,conversationId,content:user,
+        importance:2,confidence:.45,verified:false,validFrom:date});
+    }else{
+      db.prepare("INSERT OR IGNORE INTO core_meta(key,value) VALUES(?,?)").run("memory_skip_"+userId,"1");
+    }
     db.prepare("UPDATE conversations SET updated_at=? WHERE id=?").run(date,conversationId);
     event(db,"conversation.exchange",{conversationId,exchangeId,model});
     return {conversationId,exchangeId,stored:true};
