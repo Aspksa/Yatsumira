@@ -1,3 +1,4 @@
+import {planMemoryQuery,analyzeMemoryQuestion} from "./memory-v6-intelligence.mjs";
 import {recordAnswerAudit} from "./memory-v5-quality.mjs";
 import { hybridRecall } from "./memory-provider.mjs";
 import {startCoreMaintenance,memoryMaintenanceStatus} from "./memory-maintenance.mjs";
@@ -178,8 +179,20 @@ export function cloudApiPlugin() {
               return json(res,400,{error:"Неверный формат сообщений"});
             }
             // Retrieve only bounded, relevant user-originated excerpts; no AI answer is silently learned as truth.
-            const recall=await hybridRecall(input.messages.at(-1).content,{limit:7});
-            const recalled=makeMemoryContext(input.messages.at(-1).content,{maxChars:2500,limit:7,records:recall.results});
+            const userQuery=input.messages.at(-1).content;
+            const recall=await hybridRecall(userQuery,{limit:7});
+            const plan=planMemoryQuery(userQuery);
+            let candidateMemories=recall.results;
+            // Bounded deeper search only for complex queries with thin first-pass recall.
+            // All candidates retain original SQLite provenance and verification status.
+            if(plan.depth>1 && recall.results.length<5){
+              try{
+                const deeper=analyzeMemoryQuestion(userQuery,{limit:10}).results;
+                const collected=new Map([...candidateMemories,...deeper].map(item=>[item.id,item]));
+                candidateMemories=[...collected.values()].slice(0,10);
+              }catch(error){console.error("[YATSUMIRA CORE] Deep recall:",error?.message||String(error));}
+            }
+            const recalled=makeMemoryContext(userQuery,{maxChars:2500,limit:7,records:candidateMemories});
             const messages = [{ role:"system",content:ASSISTANT },
               ...(recalled.text?[{role:"system",content:recalled.text}]:[]),
               ...input.messages];
@@ -191,7 +204,7 @@ export function cloudApiPlugin() {
             commitAssistantExchange({messages:input.messages,answer,model,
               sessionId:input.sessionId,requestId:input.requestId});
             // Diagnostics are best-effort and never block a completed user answer.
-            try{recordAnswerAudit(input.messages.at(-1).content,answer,recall.results);}
+            try{recordAnswerAudit(userQuery,answer,candidateMemories);}
             catch(error){console.error("[YATSUMIRA CORE] Evidence audit:",error?.message||String(error));}
             return json(res,200,{answer,model});
           }
