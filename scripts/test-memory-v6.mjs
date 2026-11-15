@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {contraryEvidenceCandidates,traceAnswerClaims,evaluateAnswerContext} from "../server/memory-v6-evidence.mjs";
 import {structuralGraphFeatures,suggestMissingGraphLinks,graphOfCommunities,causalGraph} from "../server/memory-v6-graph-features.mjs";
 import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
@@ -66,6 +67,14 @@ try{
   assert.ok(Array.isArray(suggestMissingGraphLinks()));
   assert.ok(graphOfCommunities().communities.length>0);
   assert.deepEqual(causalGraph({reviewedOnly:true}),[]);
+  const recalls=analyzeMemoryQuestion("Проект Заря",{limit:5}).results;
+  assert.ok(Array.isArray(contraryEvidenceCandidates("Проект Заря")));
+  const traced=traceAnswerClaims("Проект Заря использует Модуль Лира.",recalls);
+  assert.equal(traced.claims.length,1);
+  assert.equal(traced.claims[0].requiresValidation,true);
+  const answerQuality=evaluateAnswerContext("Проект Заря","Проект Заря использует Модуль Лира.",recalls);
+  assert.equal(typeof answerQuality.needMoreEvidence,"boolean");
+  assert.ok(answerQuality.decision.includes("Never assert"));
   const snapshot=recordMemorySnapshot("test-baseline");
   assert.match(snapshot.checksum,/^[a-f0-9]{64}$/);
   assert.equal(snapshot.memories,3);
