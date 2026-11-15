@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=5;
+const SCHEMA=6;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -59,7 +59,14 @@ const sql=[
 "CREATE TABLE IF NOT EXISTS memory_hyperedge_nodes(hyperedge_id TEXT NOT NULL REFERENCES memory_hyperedges(id) ON DELETE CASCADE,node_id TEXT NOT NULL REFERENCES graph_nodes(id) ON DELETE CASCADE,role TEXT NOT NULL,PRIMARY KEY(hyperedge_id,node_id,role))",
 "CREATE TABLE IF NOT EXISTS memory_document_index(source_key TEXT PRIMARY KEY,digest TEXT NOT NULL,indexed_at TEXT NOT NULL,result_json TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_quality_runs(id TEXT PRIMARY KEY,kind TEXT NOT NULL,payload TEXT NOT NULL,created_at TEXT NOT NULL)",
-"CREATE INDEX IF NOT EXISTS idx_memory_task_status ON memory_tasks(status,updated_at)"
+"CREATE INDEX IF NOT EXISTS idx_memory_task_status ON memory_tasks(status,updated_at)",
+"CREATE TABLE IF NOT EXISTS memory_hypotheses(id TEXT PRIMARY KEY,claim TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('hypothesis','analogy','counterfactual','question','causal')),status TEXT NOT NULL DEFAULT 'candidate' CHECK(status IN ('candidate','reviewed','rejected')),confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_hypothesis_evidence(hypothesis_id TEXT NOT NULL REFERENCES memory_hypotheses(id) ON DELETE CASCADE,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,stance TEXT NOT NULL CHECK(stance IN ('supports','opposes','context')),PRIMARY KEY(hypothesis_id,memory_id,stance))",
+"CREATE TABLE IF NOT EXISTS memory_ontology_types(type_name TEXT PRIMARY KEY,parent_type TEXT REFERENCES memory_ontology_types(type_name),state TEXT NOT NULL CHECK(state IN ('candidate','reviewed')),created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_representations(memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,representation_kind TEXT NOT NULL CHECK(representation_kind IN ('summary','distillation','reflection')),content TEXT NOT NULL,verified INTEGER NOT NULL DEFAULT 0 CHECK(verified IN (0,1)),created_at TEXT NOT NULL,PRIMARY KEY(memory_id,representation_kind))",
+"CREATE TABLE IF NOT EXISTS memory_snapshots(id TEXT PRIMARY KEY,revision_label TEXT NOT NULL,knowledge_count INTEGER NOT NULL,assertion_count INTEGER NOT NULL,checksum TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS memory_retrieval_profiles(name TEXT PRIMARY KEY,weights_json TEXT NOT NULL,updated_at TEXT NOT NULL)",
+"CREATE INDEX IF NOT EXISTS idx_hypothesis_kind ON memory_hypotheses(kind,status)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
