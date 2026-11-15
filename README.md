@@ -38,3 +38,16 @@ The local development server listens on `127.0.0.1` only. The Vite development m
 API access is account-dependent, may incur charges and requires internet. No real Cloud.ru key has been used in the automated tests.
 
 Official docs: https://cloud.ru/docs/foundation-models/ug/topics/api-ref
+
+## NEXUS radial atlas (demonstration)
+
+The left Canvas now renders **eight concentric rings**, weighted sectors and deterministic, non-overlapping demonstration nodes (documents, facts, agents). These are **not** yet actual RAG documents or stored memories. Future integrations should use `NexusView.setCounts(...)` and replace the demo layout with real entity records.
+
+- Mouse wheel zooms at the pointer, from 0.55× to 5×.
+- Hold the left mouse button and drag to pan.
+- Click a node for its demo information card; Enter with the focused canvas selects a node.
+- The card is explicitly marked `ДЕМО`; Close returns focus to Canvas.
+- Off-screen nodes are culled before drawing; level-of-detail and measured FPS adjust the amount of work per frame.
+- Existing black chat, Cloud.ru settings and local API proxy are unchanged.
+
+Automated browser tests cover layout, node separation, density-weighted sectors, zoom, drag, keyboard selection, the chat and responsive viewport. These tests use mock Cloud.ru responses and no real credentials.
