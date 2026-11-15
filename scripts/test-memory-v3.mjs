@@ -5,13 +5,13 @@ import {join} from "node:path";
 import {withCoreDatabase,addKnowledge,saveExchange,coreStatus} from "../server/core-db.mjs";
 import {recallMemory} from "../server/long-memory.mjs";
 import {storeEmbedding,vectorRecall,vectorOverview,reciprocalFusion,rerankCandidates} from "../server/memory-vectors.mjs";
-import {embedText,indexMissingEmbeddings,hybridRecall} from "../server/memory-provider.mjs";
+import {embedText,indexMissingEmbeddings,hybridRecall,rerankWithProvider} from "../server/memory-provider.mjs";
 import {extractCandidates,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors} from "../server/memory-intelligence.mjs";
 import {consolidateStep,summarizeConversation,memoryMaintenanceStatus,evaluateRetrieval,recordRetrievalEvaluation} from "../server/memory-maintenance.mjs";
 
 const savedCwd=process.cwd();
 const dir=mkdtempSync(join(tmpdir(),"yatsumira-memory-v3-"));
-const vars=["YATSUMIRA_MEMORY_EMBED_URL","YATSUMIRA_MEMORY_EMBED_KEY","YATSUMIRA_MEMORY_EMBED_MODEL"];
+const vars=["YATSUMIRA_MEMORY_EMBED_URL","YATSUMIRA_MEMORY_EMBED_KEY","YATSUMIRA_MEMORY_EMBED_MODEL","YATSUMIRA_MEMORY_RERANK_URL","YATSUMIRA_MEMORY_RERANK_KEY","YATSUMIRA_MEMORY_RERANK_MODEL"];
 const oldVars=Object.fromEntries(vars.map(name=>[name,process.env[name]]));
 try{
   process.chdir(dir);
@@ -72,6 +72,20 @@ try{
   assert.equal(online.results[0].id,graph[0].id);
   const unavailable=await hybridRecall("договор D-123",{limit:3,request:async()=>{throw Error("network offline");}});
   assert.equal(unavailable.mode,"lexical-fallback");
+  process.env.YATSUMIRA_MEMORY_RERANK_URL="https://rerank.example/v1/rerank";
+  process.env.YATSUMIRA_MEMORY_RERANK_KEY="fake-rerank-key";
+  process.env.YATSUMIRA_MEMORY_RERANK_MODEL="test/rerank";
+  const withRerank=await rerankWithProvider("проверка",fused,{request:async(url,opts)=>{
+    assert.equal(url,"https://rerank.example/v1/rerank");
+    assert.equal(opts.headers.Authorization,"Bearer fake-rerank-key");
+    const input=JSON.parse(opts.body);
+    assert.equal(input.documents.length,fused.length);
+    return new Response(JSON.stringify({results:input.documents.map((_,i)=>({index:i,relevance_score:i}))}),{status:200});
+  }});
+  assert.equal(withRerank[0].id,fused.at(-1).id);
+  const keep=await hybridRecall("договор D-123",{limit:3,request:fake});
+  assert.equal(keep.mode,"hybrid-neural");
+  assert.equal(keep.reranked,false,"Unavailable reranker must not block semantic recall");
   const fresh=addKnowledge({content:"Справка по производству условных средств документирования",sector:1,source:"note"});
   assert.equal(fresh.added,true);
   const indexed=await indexMissingEmbeddings({batch:4,request:fake});
