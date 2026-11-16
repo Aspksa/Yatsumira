@@ -42,11 +42,15 @@ export async function embedText(text,{request=fetch}={}){
 export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
   const config=settings();
   if(!config)return {enabled:false,indexed:0};
-  const rows=withCoreDatabase(db=>db.prepare("SELECT m.id,m.content FROM memory_entries m LEFT JOIN memory_vectors v ON v.memory_id=m.id AND v.model=? WHERE m.state='active' AND v.memory_id IS NULL ORDER BY m.rowid LIMIT ?").all(config.model,Math.max(1,Math.min(20,batch))));
+  const target=Math.max(1,Math.min(20,Number(batch)||12));
+  // Scan beyond unembeddable entries so one sensitive note cannot permanently
+  // block all later notes. Bound each pass to protect memory and USB I/O.
+  const rows=withCoreDatabase(db=>db.prepare("SELECT m.id,m.content FROM memory_entries m LEFT JOIN memory_vectors v ON v.memory_id=m.id AND v.model=? WHERE m.state='active' AND v.memory_id IS NULL ORDER BY m.rowid LIMIT ?").all(config.model,Math.min(1000,Math.max(80,target*20))));
   let indexed=0,skipped=0,failed=0;
   // Keep indexing sequential: never saturate the USB database or the remote provider.
   // A failed provider call ends this batch, preserving already committed vectors.
   for(const row of rows){
+    if(indexed>=target)break;
     if(!row.content?.trim()||confidential.test(row.content)){skipped++;continue;}
     try{
       const result=await embedText(row.content,{request});
