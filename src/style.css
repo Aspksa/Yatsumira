@@ -267,3 +267,37 @@ canvas { display:block; width:100%; height:100%; background:transparent; }
   .chat-panel .message {max-width:min(100%,var(--message-max-width));}
   .attachment-tray {padding-inline:12px;}
 }
+
+/* CHAT ↔ NEXUS: one unified surface, explicit node-to-dialog context. */
+.nexus-discuss {
+  display:block;width:100%;margin-top:14px;padding:10px 13px;
+  border:1px solid #34766a;background:#123a34;border-radius:8px;
+  color:#c9fff1;cursor:pointer;font:12px inherit;
+}
+.nexus-discuss[hidden],.nexus-chat-context[hidden] {display:none!important;}
+.nexus-discuss:hover,.nexus-discuss:focus-visible {background:#1c5148;outline-color:#6bdac5;}
+.nexus-chat-context {
+  flex:none;display:flex;align-items:center;gap:8px;
+  min-width:0;margin:10px 20px 0;padding:7px 10px;
+  background:#091d1c;border:1px solid #20554c;border-radius:8px;
+  color:#aee7d8;font-size:11px;
+}
+.nexus-chat-context span {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nexus-chat-context button {
+  flex:none;background:transparent;border:0;border-radius:5px;
+  color:#9ad9cb;cursor:pointer;padding:5px 7px;font-size:11px;
+}
+.nexus-chat-context button:hover,.nexus-chat-context button:focus-visible {
+  color:#e5fff5;background:#173c36;
+}
+.message-graph-link {
+  display:block;margin:10px 0 0;padding:5px 8px;max-width:100%;
+  background:#0f2c2a;border:1px solid #266157;border-radius:6px;
+  color:#8fe3d0;cursor:pointer;text-align:left;font-size:11px;
+  overflow-wrap:anywhere;
+}
+.message-graph-link:hover,.message-graph-link:focus-visible {background:#194039;color:#edfff8;}
+@media(max-width:650px) {
+  .nexus-chat-context {margin-inline:12px;}
+  .nexus-discuss {min-height:42px;}
+}
