@@ -40,6 +40,43 @@ export function extractCandidates(text){
   }
   return results.slice(0,12);
 }
+/** Compare extracted contract clauses from two text revisions without an LLM.
+ * Different day units are incomparable, not automatically contradictions.
+ * This is a review aid, not a legal determination. */
+export function compareContractTerms(previousText,nextText){
+  const previous=extractCandidates(previousText);
+  const next=extractCandidates(nextText);
+  const key=item=>item.subject+"|"+item.predicate;
+  const group=items=>{
+    const map=new Map();
+    for(const item of items){
+      const k=key(item);
+      if(!map.has(k))map.set(k,[]);
+      map.get(k).push(item);
+    }
+    return map;
+  };
+  const left=group(previous),right=group(next);
+  const keys=new Set([...left.keys(),...right.keys()]);
+  const changes=[];
+  for(const k of [...keys].sort()){
+    const old=left.get(k)||[],current=right.get(k)||[];
+    const values=items=>[...new Set(items.map(x=>x.object))].sort();
+    const before=values(old),after=values(current);
+    if(JSON.stringify(before)===JSON.stringify(after))continue;
+    changes.push({
+      subject:(current[0]||old[0]).subject,
+      predicate:(current[0]||old[0]).predicate,
+      status:!old.length?"added":!current.length?"removed":"changed",
+      before,after,
+      previousExcerpts:old.map(x=>x.excerpt),
+      nextExcerpts:current.map(x=>x.excerpt),
+      requiresReview:true
+    });
+  }
+  return {changes,previousCount:previous.length,nextCount:next.length,
+    policy:"Heuristic extraction; missing clauses may be extraction failures. Review original contract text."};
+}
 export function inspectSourceFacts(db,memoryId){
   const memory=db.prepare("SELECT id,content,state,valid_from FROM memory_entries WHERE id=?").get(memoryId);
   if(!memory||memory.state!=="active")return {created:0,conflicts:0};
