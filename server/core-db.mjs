@@ -33,6 +33,9 @@ const sql=[
 "CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE OF content ON memory_entries BEGIN INSERT INTO memory_fts(memory_fts,rowid,content) VALUES('delete',old.rowid,old.content); INSERT INTO memory_fts(rowid,content) VALUES(new.rowid,new.content); END",
 "CREATE TABLE IF NOT EXISTS memory_vectors(memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,model TEXT NOT NULL,dimensions INTEGER NOT NULL CHECK(dimensions BETWEEN 2 AND 4096),vector_json TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(memory_id,model))",
 "CREATE INDEX IF NOT EXISTS idx_memory_vectors_model ON memory_vectors(model)",
+// Changing a memory's content invalidates every model-specific vector. The
+// background embedding worker will regenerate them for the new text.
+"CREATE TRIGGER IF NOT EXISTS memory_vectors_content_invalidate AFTER UPDATE OF content ON memory_entries WHEN old.content <> new.content BEGIN DELETE FROM memory_vectors WHERE memory_id=new.id; END",
 "CREATE TABLE IF NOT EXISTS memory_facts(id TEXT PRIMARY KEY,memory_id TEXT NOT NULL REFERENCES memory_entries(id) ON DELETE CASCADE,subject TEXT NOT NULL,predicate TEXT NOT NULL,object TEXT NOT NULL,valid_from TEXT NOT NULL,valid_to TEXT,confidence REAL NOT NULL CHECK(confidence BETWEEN 0 AND 1),review_state TEXT NOT NULL CHECK(review_state IN ('candidate','reviewed','rejected')),created_at TEXT NOT NULL,UNIQUE(memory_id,subject,predicate,object))",
 "CREATE INDEX IF NOT EXISTS idx_memory_facts_subject ON memory_facts(subject,predicate,valid_from)",
 "CREATE TABLE IF NOT EXISTS memory_conflicts(id TEXT PRIMARY KEY,left_fact TEXT NOT NULL REFERENCES memory_facts(id) ON DELETE CASCADE,right_fact TEXT NOT NULL REFERENCES memory_facts(id) ON DELETE CASCADE,reason TEXT NOT NULL,review_state TEXT NOT NULL DEFAULT 'pending' CHECK(review_state IN ('pending','dismissed','resolved')),created_at TEXT NOT NULL,UNIQUE(left_fact,right_fact))",
