@@ -1,5 +1,6 @@
 /** Backward-compatible local knowledge HTTP API, now backed by SQLite. */
 import {getKnowledgeGraph,addKnowledge} from "./core-db.mjs";
+import {getNexusCells} from "./nexus-cells.mjs";
 import {mkdirSync,writeFileSync} from "node:fs";
 import {join,resolve} from "node:path";
 import {randomUUID} from "node:crypto";
@@ -30,6 +31,7 @@ async function readAttachment(req){
 }
 export async function handleKnowledge(req,res,path){
   try{
+    if(path==="/api/knowledge/cells"&&req.method==="GET")return respond(res,200,getNexusCells());
     if(path==="/api/knowledge/graph"&&req.method==="GET")return respond(res,200,getKnowledgeGraph());
     if(path==="/api/knowledge/attachment"&&req.method==="POST"){
       // Maximum 4 MiB raw data. Reject path traversal and unknown encodings.
