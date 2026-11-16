@@ -4,7 +4,7 @@ export const CELL_CAPACITY=32;
 function schema(db){
   db.exec(`CREATE TABLE IF NOT EXISTS nexus_cells(
     id INTEGER PRIMARY KEY AUTOINCREMENT,sector INTEGER NOT NULL,group_name TEXT NOT NULL,
-    parent_id INTEGER REFERENCES nexus_cells(id),created_at TEXT NOT NULL,
+    parent_id INTEGER REFERENCES nexus_cells(id) ON DELETE SET NULL,created_at TEXT NOT NULL,
     UNIQUE(sector,group_name,id));
     CREATE TABLE IF NOT EXISTS nexus_cell_items(
     knowledge_id TEXT PRIMARY KEY REFERENCES knowledge(id) ON DELETE CASCADE,
