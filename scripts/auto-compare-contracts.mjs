@@ -3,7 +3,7 @@
  * Offline automatic batch comparison: <name>.old.txt + <name>.new.txt.
  * No cloud calls, no background process, no additional packages.
  */
-import {readdirSync,mkdirSync,writeFileSync,statSync} from "node:fs";
+import {readdirSync,mkdirSync,writeFileSync} from "node:fs";
 import {join,resolve,basename} from "node:path";
 import {fileURLToPath} from "node:url";
 import {compareFiles} from "./compare-contracts.mjs";
