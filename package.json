@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:static": "node --test scripts/test-project.mjs",
-    "test:browser": "node scripts/test-browser.mjs"
+    "test:browser": "node scripts/test-browser.mjs",
+    "contracts:auto": "node scripts/auto-compare-contracts.mjs",
+    "test:contracts": "node --test scripts/test-contract-diff.mjs scripts/test-auto-compare-contracts.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
