@@ -29,6 +29,12 @@ const speedInput = document.querySelector<HTMLInputElement>("#animation-speed");
 const widthInput = document.querySelector<HTMLInputElement>("#chat-width");
 const speedValue = document.querySelector<HTMLOutputElement>("#speed-value");
 const widthValue = document.querySelector<HTMLOutputElement>("#width-value");
+const lineHeightInput = document.querySelector<HTMLInputElement>("#message-line-height")!;
+const messageWidthInput = document.querySelector<HTMLInputElement>("#message-max-width")!;
+const chatScaleInput = document.querySelector<HTMLInputElement>("#chat-text-scale")!;
+const lineHeightValue = document.querySelector<HTMLOutputElement>("#line-height-value")!;
+const messageWidthValue = document.querySelector<HTMLOutputElement>("#message-max-width-value")!;
+const chatScaleValue = document.querySelector<HTMLOutputElement>("#chat-text-scale-value")!;
 const resetViewButton = document.querySelector<HTMLButtonElement>("#reset-view");
 const resetSettingsButton = document.querySelector<HTMLButtonElement>("#reset-settings");
 if (!settingsButton || !settingsPanel || !speedInput || !widthInput || !speedValue || !widthValue || !resetViewButton || !resetSettingsButton) {
@@ -102,7 +108,7 @@ function updateMetrics(time:number):void {
 }
 requestAnimationFrame(updateMetrics);
 
-type Preferences = { speed?: number; width?: number };
+type Preferences = { speed?: number; width?: number; lineHeight?: number; messageWidth?: number; chatScale?: number };
 let preferences: Preferences = {};
 try {
   const raw: unknown = JSON.parse(localStorage.getItem("yatsumira-ui") || "{}");
@@ -111,20 +117,33 @@ try {
 function clamp(n:number,low:number,high:number):number{return Math.max(low,Math.min(high,n));}
 if(typeof preferences.speed==="number"&&Number.isFinite(preferences.speed))speedInput.value=String(clamp(preferences.speed,0,200));
 if(typeof preferences.width==="number"&&Number.isFinite(preferences.width))widthInput.value=String(clamp(preferences.width,25,55));
+if(typeof preferences.lineHeight==="number"&&Number.isFinite(preferences.lineHeight))lineHeightInput.value=String(clamp(preferences.lineHeight,1.35,2.1));
+if(typeof preferences.messageWidth==="number"&&Number.isFinite(preferences.messageWidth))messageWidthInput.value=String(clamp(preferences.messageWidth,55,100));
+if(typeof preferences.chatScale==="number"&&Number.isFinite(preferences.chatScale))chatScaleInput.value=String(clamp(preferences.chatScale,85,150));
 function syncSettings():void {
   nexus.speed=Number(speedInput!.value)/100;
   speedValue!.value=speedInput!.value+"%";
   const fraction=Number(widthInput!.value);
   widthValue!.value=fraction+"%";
   document.documentElement.style.setProperty("--chat-share",String(fraction/100));
-  try{localStorage.setItem("yatsumira-ui",JSON.stringify({speed:Number(speedInput!.value),width:fraction}));}catch{}
+  const line=Number(lineHeightInput.value),messageWidth=Number(messageWidthInput.value),scale=Number(chatScaleInput.value);
+  document.documentElement.style.setProperty("--chat-line-height",String(line));
+  document.documentElement.style.setProperty("--message-max-width",messageWidth+"%");
+  document.documentElement.style.setProperty("--chat-scale",String(scale/100));
+  lineHeightValue.value=line.toFixed(2);
+  messageWidthValue.value=messageWidth+"%";
+  chatScaleValue.value=scale+"%";
+  try{localStorage.setItem("yatsumira-ui",JSON.stringify({speed:Number(speedInput!.value),width:fraction,lineHeight:line,messageWidth,chatScale:scale}));}catch{}
 }
 syncSettings();
 speedInput.addEventListener("input",syncSettings);
 widthInput.addEventListener("input",syncSettings);
+lineHeightInput.addEventListener("input",syncSettings);
+messageWidthInput.addEventListener("input",syncSettings);
+chatScaleInput.addEventListener("input",syncSettings);
 resetViewButton.addEventListener("click",()=>nexus.resetView());
 resetSettingsButton.addEventListener("click",()=>{
-  speedInput.value="100";widthInput.value="35";syncSettings();nexus.resetView();
+  speedInput.value="100";widthInput.value="35";lineHeightInput.value="1.65";messageWidthInput.value="95";chatScaleInput.value="100";syncSettings();nexus.resetView();
 });
 function closeSettings():void{settingsPanel!.hidden=true;settingsButton!.setAttribute("aria-expanded","false");}
 settingsButton.addEventListener("click",()=>{
