@@ -18,8 +18,16 @@ export function contraryEvidenceCandidates(query,{limit=12}={}){
     const graph=db.prepare("SELECT a.memory_id AS leftId,b.memory_id AS rightId,s.label AS subject,a.predicate,oa.label AS leftValue,ob.label AS rightValue FROM graph_conflicts c JOIN graph_assertions a ON a.id=c.left_assertion JOIN graph_assertions b ON b.id=c.right_assertion JOIN graph_nodes s ON s.id=a.subject_id JOIN graph_nodes oa ON oa.id=a.object_id JOIN graph_nodes ob ON ob.id=b.object_id WHERE c.review_state='pending'").all();
     return [...unresolved,...graph].filter(row=>ids.has(row.leftId)||ids.has(row.rightId)||
       intersections(query,row.subject+" "+row.predicate)>.2)
-      .slice(0,Math.max(1,Math.min(50,limit))).map(row=>({...row,
-        verdict:"unresolved-conflict",confirmed:false}));
+      .slice(0,Math.max(1,Math.min(50,limit))).map(row=>{
+        const left=db.prepare("SELECT source_kind AS sourceKind,source_id AS sourceId,content,state FROM memory_entries WHERE id=?").get(row.leftId);
+        const right=db.prepare("SELECT source_kind AS sourceKind,source_id AS sourceId,content,state FROM memory_entries WHERE id=?").get(row.rightId);
+        const cite=(memory,value)=>memory&&memory.state==="active"&&!confidential.test(memory.content)?{
+          sourceKind:memory.sourceKind,sourceId:memory.sourceId,
+          excerpt:(()=>{const at=memory.content.toLowerCase().indexOf(String(value).toLowerCase());return memory.content.slice(Math.max(0,at<0?0:at-100),Math.min(memory.content.length,(at<0?0:at)+String(value).length+100));})()
+        }:null;
+        return {...row,leftSource:cite(left,row.leftValue),rightSource:cite(right,row.rightValue),
+          verdict:"unresolved-conflict",confirmed:false,requiresReview:true};
+      }).filter(row=>row.leftSource&&row.rightSource);
   });
 }
 export function traceAnswerClaims(answer,results,{maxClaims=12}={}){
