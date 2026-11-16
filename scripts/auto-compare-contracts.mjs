@@ -3,10 +3,11 @@
  * Offline automatic batch comparison: <name>.old.txt + <name>.new.txt.
  * No cloud calls, no background process, no additional packages.
  */
-import {readdirSync,mkdirSync,writeFileSync} from "node:fs";
+import {readdirSync,mkdirSync,writeFileSync,readFileSync,existsSync} from "node:fs";
 import {join,resolve,basename} from "node:path";
 import {fileURLToPath} from "node:url";
 import {compareFiles} from "./compare-contracts.mjs";
+import {indexDocumentText} from "../server/brain-document-index.mjs";
 
 export function compareDirectory(directory,outputDirectory=join(directory,"reports")){
   const source=resolve(directory),destination=resolve(outputDirectory);
@@ -23,6 +24,14 @@ export function compareDirectory(directory,outputDirectory=join(directory,"repor
     const output=join(destination,base+".comparison.json");
     try{
       const oldPath=join(source,oldName),newPath=join(source,newName);
+      // Persist both complete source texts even when the review report already exists.
+      // Never send contract contents to the embedding provider.
+      const decode=new TextDecoder("utf-8",{fatal:true});
+      const read=path=>{const bytes=readFileSync(path);if(bytes.length>2*1024*1024)throw Error("Contract text exceeds 2 MiB");return decode.decode(bytes);};
+      const oldText=read(oldPath),newText=read(newPath);
+      indexDocumentText(oldPath,oldText);
+      indexDocumentText(newPath,newText);
+      if(existsSync(output)){result.skipped++;continue;}
       const report=compareFiles(oldPath,newPath);
       // Exclusive creation: never overwrite an earlier review report.
       writeFileSync(output,JSON.stringify({
