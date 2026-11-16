@@ -5,6 +5,7 @@
  */
 import {readFileSync,writeFileSync} from "node:fs";
 import {resolve,extname} from "node:path";
+import {fileURLToPath} from "node:url";
 import {compareContractTerms} from "../server/memory-intelligence.mjs";
 
 export function compareFiles(previousPath,nextPath){
@@ -30,7 +31,7 @@ function main(args){
   if(output)writeFileSync(resolve(output),json,{encoding:"utf8",flag:"wx",mode:0o600});
   else process.stdout.write(json);
 }
-if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname)){
+if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
   try{main(process.argv.slice(2));}
   catch(error){console.error("Contract comparison failed: "+error.message);process.exitCode=1;}
 }
