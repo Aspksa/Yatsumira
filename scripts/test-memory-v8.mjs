@@ -13,7 +13,7 @@ import {addHyperedge} from "../server/memory-v5-records.mjs";
 const base=process.cwd(),dir=mkdtempSync(join(tmpdir(),"yatsumira-v8-"));
 try{
   process.chdir(dir);
-  assert.equal(coreStatus().version,12);
+  assert.equal(coreStatus().version,13);
   const k1=addKnowledge({content:"«Сервис Альфа» использует «Система Лира». Сервис надёжен.",source:"note",sector:1});
   const k2=addKnowledge({content:"«Система Лира» находится в «Центр Омега». Исследования идут.",source:"note",sector:2});
   const k3=addKnowledge({content:"«Робот Сокол» использует «Сервис Альфа». Эксперимент проводится.",source:"note",sector:3});
