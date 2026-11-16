@@ -230,7 +230,7 @@ try {
     await page.locator('[data-nexus-mode="'+mode+'"]').click();
     await page.waitForFunction(value=>document.querySelector('#app')?.dataset.mode===value,mode);
     assert.equal(await page.locator('[data-nexus-mode="'+mode+'"]').getAttribute('aria-pressed'),'true');
-    assert.ok(Number(await page.locator('#app').getAttribute('data-rendered'))>0);
+    assert.ok(Number(await page.locator('#app').getAttribute('data-total'))>0);
   }
   await page.reload({waitUntil:'networkidle'});
   assert.equal(await page.locator('#app').getAttribute('data-mode'),'rings');
