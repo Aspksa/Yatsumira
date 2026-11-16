@@ -59,6 +59,8 @@ try {
   assert.equal(attached.indexed,true);
   const indexedGraph=await page.evaluate(async()=>await (await fetch('/api/knowledge/graph')).json());
   assert.ok(indexedGraph.records.some(record=>record.kind==='document'&&record.title==='test-chat-v14.txt'));
+  await page.reload({waitUntil:'networkidle'});
+  await page.waitForFunction(()=>Number(document.querySelector('#app')?.dataset.knowledge)>0);
 
   // Snapshots are produced from actual Chromium rendering for visual review.
   const visualDir=join(root,'artifacts','visual');
