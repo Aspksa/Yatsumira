@@ -18,6 +18,15 @@
         <input id="animation-speed" type="range" min="0" max="200" value="100" step="10"/>
         <label for="chat-width">Ширина чата <output id="width-value">35%</output></label>
         <input id="chat-width" type="range" min="25" max="55" value="35"/>
+        <section class="chat-typography-settings" aria-label="Отображение чата">
+          <div class="settings-title">ТЕКСТ И ЧИТАЕМОСТЬ ЧАТА</div>
+          <label for="message-line-height">Межстрочный интервал <output id="line-height-value">1.65</output></label>
+          <input type="range" id="message-line-height" min="1.35" max="2.10" step="0.05" value="1.65"/>
+          <label for="message-max-width">Ширина текста <output id="message-max-width-value">93%</output></label>
+          <input type="range" id="message-max-width" min="55" max="100" step="5" value="95"/>
+          <label for="chat-text-scale">Масштаб текста <output id="chat-text-scale-value">100%</output></label>
+          <input type="range" id="chat-text-scale" min="85" max="150" step="5" value="100"/>
+        </section>
         <div class="setting-actions"><button type="button" id="reset-view">Сбросить масштаб</button><button type="button" id="reset-settings">По умолчанию</button></div>
         <section class="knowledge-section" aria-labelledby="knowledge-heading">
           <h2 id="knowledge-heading">Развитие NEXUS</h2>
@@ -90,7 +99,10 @@
             <span id="chat-intro-status">Подключите Cloud.ru в настройках</span>
           </div>
         </div>
+        <div class="attachment-tray" id="attachment-tray" aria-live="polite" hidden></div>
         <form class="composer" id="chat-form">
+          <input type="file" id="chat-file-input" multiple hidden aria-label="Выберите файлы для чата"/>
+          <button type="button" id="attach-files" class="attach-button" aria-label="Прикрепить файлы" title="Прикрепить файлы">＋</button>
           <label class="sr-only" for="chat-input">Сообщение для Яцумиры</label>
           <textarea id="chat-input" rows="1" placeholder="Написать Яцумире..." maxlength="4000"></textarea>
           <button type="submit" aria-label="Отправить сообщение" title="Отправить сообщение">
