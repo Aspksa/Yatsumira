@@ -53,16 +53,6 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
       bySector[node.sector].set(label,existing);
     }
     for(let sector=0;sector<8;sector++){
-      // Demonstration clusters occupy distinct radial wedges; no fabricated file links.
-      for(let groupIndex=0;groupIndex<REFERENCE_FAN_COUNTS[sector];groupIndex++){
-        const sectorInfo=layout.sectors[sector];
-        const angle=sectorInfo.start+(groupIndex+.5)*(sectorInfo.end-sectorInfo.start)/REFERENCE_FAN_COUNTS[sector];
-        const label=REFERENCE_FAN_COUNTS[sector]===1?sectorInfo.title.toUpperCase():
-          sectorInfo.title.toUpperCase()+" / "+String(groupIndex+1);
-        groups.push({id:"demo-"+sector+"-"+groupIndex,label,sector,
-          count:layout.nodes.filter(node=>!node.actual&&node.sector===sector).length,
-          x:Math.cos(angle)*(groupIndex%2===0?282:291),y:Math.sin(angle)*(groupIndex%2===0?282:291),radius:0});
-      }
       const entries=[...bySector[sector]].sort((a,b)=>a[0].localeCompare(b[0],"ru"));
       const section=layout.sectors[sector];
       const span=section.end-section.start;

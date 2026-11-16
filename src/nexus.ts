@@ -16,14 +16,14 @@ export type KnowledgeLink = { source:string; target:string; kind:string; strengt
 const TWO_PI = Math.PI * 2;
 const RINGS = [148, 170, 192, 214, 236, 258, 342, 362];
 const CATALOG = [
-  { title: "Память", color: "#56ded0", count: 108 },
-  { title: "Знания", color: "#8fcbe8", count: 168 },
-  { title: "Агенты", color: "#b5a2f0", count: 76 },
-  { title: "Анализ", color: "#d9ac79", count: 124 },
-  { title: "Проекты", color: "#75d1a7", count: 86 },
-  { title: "Связи", color: "#81b1cc", count: 142 },
-  { title: "Архив", color: "#c7b2a7", count: 112 },
-  { title: "Система", color: "#a391df", count: 80 }
+  { title: "Память", color: "#56ded0", count: 0 },
+  { title: "Знания", color: "#8fcbe8", count: 0 },
+  { title: "Агенты", color: "#b5a2f0", count: 0 },
+  { title: "Анализ", color: "#d9ac79", count: 0 },
+  { title: "Проекты", color: "#75d1a7", count: 0 },
+  { title: "Связи", color: "#81b1cc", count: 0 },
+  { title: "Архив", color: "#c7b2a7", count: 0 },
+  { title: "Система", color: "#a391df", count: 0 }
 ] as const;
 
 function hash(seed: number): number {
@@ -156,7 +156,7 @@ export class NexusView {
     this.canvas.addEventListener("keydown",event => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        const node = this.hovered || this.realNodes[0] || this.layout.nodes.find(item => item.importance === 3) || this.layout.nodes[0];
+        const node = this.hovered || this.realNodes[0];
         if (node) this.select(node);
       } else if (event.key === "+" || event.key === "=") {
         this.targetZoom = Math.min(5, this.targetZoom * 1.2);
@@ -207,14 +207,13 @@ export class NexusView {
   resetView(): void {
     this.targetZoom=1; this.targetPanX=0;this.targetPanY=0;
   }
-  setCounts(counts: readonly number[]): void {
-    this.layout = buildNexusLayout(counts);
-    this.selectedId = null;
+  setCounts(_counts: readonly number[]): void {
+    // Demo counts are intentionally disabled: only persisted knowledge is rendered.
   }
 
   setKnowledge(records: readonly KnowledgeRecord[], links: readonly KnowledgeLink[]): void {
     const clean=records.filter(record=>Number.isInteger(record.sector)&&record.sector>=0&&record.sector<8);
-    const base=[108,168,76,124,86,142,112,80];
+    const base=[0,0,0,0,0,0,0,0];
     const counts=base.map((count,sector)=>count+clean.filter(row=>row.sector===sector).length);
     const layout=buildNexusLayout(counts);
     const mapping=new Map<string,NexusNode>();
@@ -420,54 +419,24 @@ export class NexusView {
       const selected=node.id===this.selectedId;
       const hovered=node.id===this.hovered?.id;
       const pulse=this.reducedMotion||this.quality<.9?0:Math.sin(this.animationTime*1.5+node.ring+node.sector)*.15;
-      const outer=this.mode==="rings"&&node.ring>=6;
-      const r=(outer?Math.max(5.2,node.radius+1.6):node.actual?Math.max(2.7,node.radius):this.mode==="rings"?Math.min(1.9,node.radius):Math.min(2.1,node.radius))+(selected?2:hovered?1.3:0);
+      const r=Math.max(2.4,Math.min(4.2,node.radius))+(selected?1.3:hovered?.7:0);
       ctx.globalAlpha=node.actual?1:Math.max(outer?.56:.34,outer?.65+pulse*.3:.43+pulse);
       ctx.strokeStyle=color;ctx.fillStyle=color;
       if((selected||hovered||node.actual) && this.quality>.65){
         ctx.shadowBlur=selected?14:7;ctx.shadowColor=color;
       }
-      if(this.mode==="rings"&&!outer&&!node.actual&&this.quality>=.65&&this.zoom<2.3){
-        // Decorative microcells increase apparent density without creating false knowledge nodes.
-        // Coordinates are deterministic and radial, preserving the photographic reference's fan texture.
-        const angle=Math.atan2(ny,nx);
-        const radialX=Math.cos(angle),radialY=Math.sin(angle);
-        const tangentX=-radialY,tangentY=radialX;
-        ctx.globalAlpha=.38;
-        const microCount=this.quality>.9&&this.fps>=56?16:this.quality>.9?12:6;
-        for(let cell=0;cell<microCount;cell++){
-          const along=(cell%4-1.5)*3.7;
-          const across=(Math.floor(cell/4)-(microCount===16?1.5:1))*3.6;
-          const px=nx+radialX*along+tangentX*across;
-          const py=ny+radialY*along+tangentY*across;
-          ctx.fillRect(px-.82,py-.82,1.64,1.64);
-        }
-        ctx.globalAlpha=node.actual?1:Math.max(.34,.43+pulse);
+      // All visible records use the same compact hexagonal cell, regardless of mode.
+      // Decorative squares, circular glyphs and procedural microcells are removed.
+      ctx.beginPath();
+      for(let side=0;side<6;side++){
+        const angle=Math.PI/6+side*Math.PI/3;
+        const hx=nx+Math.cos(angle)*r,hy=ny+Math.sin(angle)*r;
+        if(side===0)ctx.moveTo(hx,hy);else ctx.lineTo(hx,hy);
       }
-      if(outer){
-        // Open-circle icons around the perimeter, as in the reference atlas.
-        ctx.beginPath();ctx.arc(nx,ny,r,0,TWO_PI);
-        ctx.lineWidth=1.25;ctx.stroke();
-        ctx.globalAlpha*=.55;
-        ctx.beginPath();ctx.arc(nx,ny,r*.74,0,TWO_PI);
-        ctx.lineWidth=.75;ctx.stroke();
-        ctx.globalAlpha=node.actual?1:Math.max(.56,.65+pulse*.3);
-        ctx.shadowBlur=0;
-        ctx.beginPath();ctx.arc(nx,ny,Math.max(1,r*.35),0,TWO_PI);
-        if(this.quality>.4&&this.zoom>.72)drawNexusGlyph(ctx,nx,ny,r,node.kind==="agent"?2:node.kind==="document"?1:node.sector,color);
-        if(node.actual || selected){
-          ctx.beginPath();ctx.arc(nx,ny,r+2.2,0,TWO_PI);
-          ctx.globalAlpha=.56;ctx.lineWidth=.8;ctx.stroke();
-        }
-      }else{
-        // Compact rectilinear points form dense radial data blocks.
-        ctx.fillRect(nx-r*.48,ny-r*.48,r*.96,r*.96);
-        if(node.actual || selected || (node.importance===3 && this.zoom>1.1)){
-          ctx.shadowBlur=0;
-          ctx.beginPath();ctx.arc(nx,ny,r+1.5,0,TWO_PI);
-          ctx.lineWidth=.65;ctx.globalAlpha=.63;ctx.stroke();
-        }
-      }
+      ctx.closePath();
+      ctx.lineWidth=selected?1.45:.85;
+      ctx.stroke();
+      if(selected||hovered||node.verified){ctx.globalAlpha=selected?.52:.24;ctx.fill();}
       ctx.shadowBlur=0;ctx.globalAlpha=1;
       if(this.zoom>2.15&&(node.actual||selected||hovered||(this.zoom>3.3&&node.importance===3))){
         ctx.font="8px Consolas, monospace";ctx.textAlign="center";ctx.textBaseline="middle";
