@@ -81,6 +81,7 @@
             <p id="nexus-card-details"></p>
             <dl id="nexus-card-meta" class="nexus-card-meta"></dl>
             <div class="nexus-card-related" id="nexus-card-related" aria-label="Связанные узлы"></div>
+            <button type="button" id="nexus-discuss" class="nexus-discuss" hidden>Обсудить в чате</button>
           </section>
         </div>
         <footer class="bottom-bar"><span>◈ &nbsp; 08 TAILS · 08 DOMAINS</span><span>CANVAS ENGINE <strong>ACTIVE</strong></span></footer>
@@ -90,6 +91,11 @@
           <div class="avatar">八</div>
           <div class="chat-identity"><strong>YATSUMIRA</strong><span>Личный ИИ-помощник</span></div>
           <span class="connection-indicator" id="connection-indicator">НЕ ПОДКЛЮЧЕНО</span>
+        </div>
+        <div id="nexus-chat-context" class="nexus-chat-context" hidden aria-live="polite">
+          <span id="nexus-context-label"></span>
+          <button type="button" id="nexus-context-open" title="Показать выбранный узел в графе">На графе</button>
+          <button type="button" id="nexus-context-clear" aria-label="Убрать контекст">×</button>
         </div>
         <div class="chat-body" id="messages" role="log" aria-live="polite">
           <div class="chat-intro">
