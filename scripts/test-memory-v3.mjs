@@ -118,6 +118,15 @@ try{
   assert.equal(resumed.failed,0);
   const completed=await indexMissingEmbeddings({batch:10,request:fake});
   assert.equal(completed.indexed,0,"Previously indexed memories must not be sent again");
+  // A sensitive note ahead of an ordinary note must not starve the batch.
+  addKnowledge({content:"Служебная запись: api_key=exampleconfidentialtoken123456789",sector:1,source:"note"});
+  addKnowledge({content:"Новый безопасный документ о проверке сроков поставки",sector:1,source:"note"});
+  const scanned=await indexMissingEmbeddings({batch:1,request:async(url,opts)=>{
+    assert.ok(!JSON.stringify(JSON.parse(opts.body).input).includes("exampleconfidentialtoken"));
+    return fake(url,opts);
+  }});
+  assert.equal(scanned.indexed,1,"Safe records after a sensitive record must still be indexed");
+  assert.ok(scanned.skipped>=1);
   for(const name of vars)delete process.env[name];
 
   for(let i=0;i<4;i++)saveExchange({conversationId:"default",exchangeId:"summary-"+i,user:"Я проверяю условия договора поставки "+i,assistant:"Тестовый ответ модели "+i,model:"test/model"});
