@@ -18,6 +18,46 @@ try {
   page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
   const response=await page.goto(url,{waitUntil:'networkidle'});
   assert.equal(response?.status(),200);
+  // CHAT DESIGN v14: persistent typography controls and safe local attachments.
+  await page.locator('#settings-toggle').click();
+  await page.locator('#message-line-height').fill('1.9');
+  await page.locator('#message-max-width').fill('80');
+  await page.locator('#chat-text-scale').fill('115');
+  const typography=await page.evaluate(()=>({
+    line:getComputedStyle(document.documentElement).getPropertyValue('--chat-line-height').trim(),
+    width:getComputedStyle(document.documentElement).getPropertyValue('--message-max-width').trim(),
+    scale:getComputedStyle(document.documentElement).getPropertyValue('--chat-scale').trim()
+  }));
+  assert.equal(typography.line,'1.9');
+  assert.equal(typography.width,'80%');
+  assert.equal(typography.scale,'1.15');
+  await page.reload({waitUntil:'networkidle'});
+  assert.equal(await page.locator('#chat-text-scale').inputValue(),'115');
+  await page.locator('#chat-file-input').setInputFiles({
+    name:'example.txt',mimeType:'text/plain',buffer:Buffer.from('Sample user-owned local file')
+  });
+  assert.match(await page.locator('#attachment-tray').innerText(),/example.txt/);
+  await page.locator('.attachment-chip button').click();
+  assert.equal(await page.locator('#attachment-tray').isHidden(),true);
+  const safeRender=await page.evaluate(async()=>{
+    const {renderSafeAssistantText}=await import('/src/chat-v14.ts');
+    const host=document.createElement('div');
+    renderSafeAssistantText(host,'Код:\\n'+String.fromCharCode(96).repeat(3)+'javascript\\nconst count = 2;\\n'+String.fromCharCode(96).repeat(3));
+    return {frames:host.querySelectorAll('pre code').length,keywords:host.querySelectorAll('.syntax-keyword').length};
+  });
+  assert.equal(safeRender.frames,1);
+  assert.ok(safeRender.keywords>=1);
+  const attached=await page.evaluate(async()=>{
+    const response=await fetch('/api/knowledge/attachment',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:'test-chat-v14.txt',data:btoa('Locally stored test')})
+    });
+    return {status:response.status,...await response.json()};
+  });
+  assert.equal(attached.status,201);
+  assert.equal(attached.storedLocally,true);
+  assert.equal(attached.indexed,false);
+
   // Snapshots are produced from actual Chromium rendering for visual review.
   const visualDir=join(root,'artifacts','visual');
   mkdirSync(visualDir,{recursive:true});
