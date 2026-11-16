@@ -245,7 +245,8 @@ try{
     const errors=[];
     const stop=startCoreMaintenance({onError:error=>errors.push(error)});
     assert.equal(callbacks.length,3);
-    await callbacks[1]();
+    // Contract scan, local maintenance, then opt-in semantic indexing.
+    await callbacks[2]();
     await new Promise(resolve=>setImmediate(resolve));
     assert.equal(errors.length,1);
     stop();

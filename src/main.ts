@@ -48,6 +48,8 @@ const contextOpen=document.querySelector<HTMLButtonElement>("#nexus-context-open
 const contextClear=document.querySelector<HTMLButtonElement>("#nexus-context-clear")!;
 let inspectedNode:NexusNode|null=null;
 let chatNode:NexusNode|null=null;
+let graphRecords=new Map<string,import("./nexus").KnowledgeRecord>();
+let cellMembers=new Map<string,string[]>();
 function setChatNode(node:NexusNode|null):void {
   chatNode=node?.actual?node:null;
   chatContext.hidden=!chatNode;
@@ -83,7 +85,7 @@ function selectNode(node:NexusNode):void {
   }
   detail("Категория",["Память","Знания","Агенты","Анализ","Проекты","Связи","Архив","Система"][node.sector] || "Неизвестно");
   detail("Группа",node.group || (node.actual?"Записи":"Демонстрационная группа"));
-  detail("Источник",node.actual?(node.source==="chat"?"Диалог Cloud.ru":"Локальная заметка"):"Демо");
+  detail("Источник",node.actual?(node.source==="chat"?"Диалог Cloud.ru":node.source==="document"?"Индексированный документ":"Локальная память"):"Демо");
   detail("Статус",node.actual?(node.verified?"Подтверждено":"Не проверено"):"Только оформление");
   if(node.actual&&node.createdAt){
     const time=new Date(node.createdAt);
@@ -91,6 +93,18 @@ function selectNode(node:NexusNode):void {
   }
   if(node.actual)detail("ID",node.id);
   cardRelated!.replaceChildren();
+  for(const id of cellMembers.get(node.id)||[]){
+    const record=graphRecords.get(id);
+    if(!record)continue;
+    const button=document.createElement("button");
+    button.type="button";button.textContent=record.kind==="document"?"📄 "+record.title:record.title;
+    button.addEventListener("click",()=>{
+      cardTitle!.textContent=record.title;
+      cardDetails!.textContent=record.content;
+      nodeBadge!.textContent=record.verified?"ПОДТВЕРЖДЕНО":"НЕ ПРОВЕРЕНО";
+    });
+    cardRelated!.append(button);
+  }
   const connected=node.actual?nexus.connectedTo(node):[];
   if(connected.length){
     const caption=document.createElement("strong");caption.textContent="Связанные записи · "+connected.length;
@@ -203,7 +217,10 @@ async function graphRequest(path:string,init:RequestInit={}):Promise<GraphRespon
   return data;
 }
 let latestGraphRevision=0;
+let storedGraphRevision=-1;
 function applyGraph(data:GraphResponse):void {
+  storedGraphRevision=data.revision;
+  graphRecords=new Map(data.records.map(record=>[record.id,record]));
   nexus.setKnowledge(data.records,data.links);
   const revision=++latestGraphRevision;
   // The cell API is local and derived from persisted SQLite knowledge.
@@ -212,12 +229,16 @@ function applyGraph(data:GraphResponse):void {
     return response.json() as Promise<{cells:import("./nexus").NexusCell[];truncated:boolean}>;
   }).then(result=>{
     if(revision!==latestGraphRevision||result.truncated)return;
+    cellMembers=new Map(result.cells.map(cell=>["cell-"+cell.id,cell.knowledgeIds]));
     nexus.setCells(result.cells,data.records,data.links);
   }).catch(error=>console.warn("[NEXUS] Cell view fallback:",error));
   knowledgeStatus!.textContent="Сохранено записей: "+data.records.length+" · связей: "+data.links.length;
 }
 async function refreshGraph():Promise<void> {
-  try{applyGraph(await graphRequest("graph"));}
+  try{
+    const data=await graphRequest("graph");
+    if(data.revision>storedGraphRevision)applyGraph(data);
+  }
   catch(error){knowledgeStatus!.textContent="Ошибка загрузки знаний: "+(error instanceof Error?error.message:"неизвестная ошибка");}
 }
 knowledgeButton!.addEventListener("click",async()=>{
@@ -233,6 +254,7 @@ knowledgeButton!.addEventListener("click",async()=>{
   }finally{knowledgeButton!.disabled=false;}
 });
 void refreshGraph();
+setInterval(()=>{if(!document.hidden)void refreshGraph();},60000);
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 const history: ChatMessage[] = [];
@@ -382,7 +404,7 @@ async function submitMessage():Promise<void> {
     const uploaded=await attachments.uploadAll();
     // Content is never silently sent to the model. Only the filename and UUID
     // are included, clearly noting that binary contents have not been indexed.
-    const references=uploaded.map(x=>"Локальный файл: "+x.name+" (ID "+x.id+"). Содержимое файла пока не индексировано и недоступно для анализа.").join("\n");
+    const references=uploaded.map(x=>"Локальный файл: "+x.name+" (ID "+x.id+"). "+(x.indexed?"Текст индексирован; используй только найденные сервером выдержки, не выдумывай содержимое.":"Содержимое не индексировано и недоступно для анализа.")).join("\n");
     const currentNode=chatNode;
     // The selected graph node is user-chosen context, not a trusted instruction or verified source.
     const nodeContext=currentNode?.actual?
@@ -398,6 +420,7 @@ async function submitMessage():Promise<void> {
     history.splice(0,history.length,...outgoing,{role:"assistant",content:result.answer});
     if(history.length>28)history.splice(0,history.length-28);
     addMessage(result.answer,"assistant",currentNode);
+    if(uploaded.some(file=>file.indexed))void refreshGraph();
     // Store an unverified dialog note rather than treating the message as confirmed truth.
     try {
       const graph=await graphRequest("ingest",{method:"POST",body:JSON.stringify({content:prompt,sector:0,source:"chat"})});

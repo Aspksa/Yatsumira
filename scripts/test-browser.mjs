@@ -11,7 +11,7 @@ try {
   await server.listen();
   const url=server.resolvedUrls?.local?.[0];
   if(!url) throw new Error('Vite local URL missing');
-  browser=await chromium.launch({headless:true});
+  browser=await chromium.launch({headless:true,...(process.env.YATSUMIRA_TEST_CHROMIUM?{executablePath:process.env.YATSUMIRA_TEST_CHROMIUM}:{})});
   const page=await browser.newPage({viewport:{width:1440,height:900}});
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
@@ -56,7 +56,11 @@ try {
   });
   assert.equal(attached.status,201);
   assert.equal(attached.storedLocally,true);
-  assert.equal(attached.indexed,false);
+  assert.equal(attached.indexed,true);
+  const indexedGraph=await page.evaluate(async()=>await (await fetch('/api/knowledge/graph')).json());
+  assert.ok(indexedGraph.records.some(record=>record.kind==='document'&&record.title==='test-chat-v14.txt'));
+  await page.reload({waitUntil:'networkidle'});
+  await page.waitForFunction(()=>Number(document.querySelector('#app')?.dataset.knowledge)>0);
 
   // Snapshots are produced from actual Chromium rendering for visual review.
   const visualDir=join(root,'artifacts','visual');
@@ -151,11 +155,12 @@ try {
   assert.equal(result.canvasContext,true);
   assert.equal(result.rootBackground,'rgb(0, 0, 0)');
   assert.equal(result.chat,true);
-  // Layout invariants: eight rings, no overlapping markers and weighted sectors.
+  // Layout invariants: empty database has no synthetic nodes; real counts grow.
   const geometry=await page.evaluate(async()=>{
     const {buildNexusLayout}=await import('/src/nexus.ts');
     const {referenceAtlasPositions}=await import('/src/nexus-reference.ts');
-    const layout=buildNexusLayout();
+    const empty=buildNexusLayout();
+    const layout=buildNexusLayout([16,160,16,16,16,16,16,16]);
     let overlap=false;
     for(let i=0;i<layout.nodes.length;i++){
       for(let j=i+1;j<layout.nodes.length;j++){
@@ -165,7 +170,7 @@ try {
       }
       if(overlap)break;
     }
-    const custom=buildNexusLayout([16,160,16,16,16,16,16,16]);
+    const custom=layout;
     const grown=buildNexusLayout([300,300,300,300,300,300,300,300]);
     const artistic=referenceAtlasPositions(layout);
     const inner=layout.nodes.filter(n=>n.ring<6);
@@ -173,7 +178,7 @@ try {
     const outer=layout.nodes.filter(n=>n.ring>=6);
     const outerSpacing=outer.every(n=>artistic.has(n.id));
     return {
-      rings:layout.rings.length,nodes:layout.nodes.length,
+      emptyNodes:empty.nodes.length,rings:layout.rings.length,nodes:layout.nodes.length,
       sectorCount:layout.sectors.length,overlap,
       wide:custom.sectors[1].end-custom.sectors[1].start,
       narrow:custom.sectors[0].end-custom.sectors[0].start,
@@ -185,21 +190,21 @@ try {
       outerNodes:layout.nodes.filter(n=>n.ring>=6).length
     };
   });
+  assert.equal(geometry.emptyNodes,0);
   assert.equal(geometry.rings,8);
   assert.equal(geometry.positions,geometry.nodes);
   assert.ok(geometry.movedInner>geometry.innerNodes*.8,'Reference fan blocks must reorganize most inner nodes');
   assert.equal(geometry.outerSpacing,true,'Every outer icon must retain a radial position');
   assert.equal(geometry.sectorCount,8);
   assert.ok(geometry.outerFirst-geometry.innerLast>70,'Preserve reference-style open label band');
-  assert.ok(geometry.innerNodes>geometry.outerNodes*2,'Dense inner dot clusters and sparse outer circular icons');
-  assert.ok(geometry.nodes>700,'Demo contains hundreds of nodes');
+  assert.ok(geometry.innerNodes>0,'Inner data rings contain real-count nodes');
   assert.equal(geometry.overlap,false,'Markers must not overlap');
   assert.ok(geometry.wide>geometry.narrow*3,'Sector spans should reflect data volume');
   assert.equal(geometry.customCount,272,'Custom sector node count must be preserved');
   assert.equal(geometry.grownCount,2400,'Growing layout must preserve all records');
   assert.ok(geometry.grownRings>8,'Graph must gain outer rings as knowledge grows');
   const renderStart=await page.locator('#app').getAttribute('data-rendered');
-  assert.ok(Number(renderStart)>0,'Canvas renders visible objects');
+  assert.ok(Number(renderStart)>0,'Indexed document renders as a cell');
   const initialZoom=Number(await page.locator('#app').getAttribute('data-zoom'));
   await page.locator('#app').hover({position:{x:220,y:220}});
   await page.mouse.wheel(0,-500);
@@ -218,14 +223,14 @@ try {
   await page.locator('#app').focus();
   await page.keyboard.press('Enter');
   assert.equal(await page.locator('#nexus-card').isVisible(),true);
-  assert.match(await page.locator('#nexus-card-details').textContent(),/Демонстрационный элемент/);
+  assert.match(await page.locator('#nexus-card-details').textContent(),/test-chat-v14|Locally stored test/);
   await page.locator('#nexus-card-close').click();
   assert.equal(await page.locator('#nexus-card').isVisible(),false);
   for(const mode of ["circle","hex","force","rings"]){
     await page.locator('[data-nexus-mode="'+mode+'"]').click();
     await page.waitForFunction(value=>document.querySelector('#app')?.dataset.mode===value,mode);
     assert.equal(await page.locator('[data-nexus-mode="'+mode+'"]').getAttribute('aria-pressed'),'true');
-    assert.ok(Number(await page.locator('#app').getAttribute('data-rendered'))>0);
+    assert.ok(Number(await page.locator('#app').getAttribute('data-total'))>0);
   }
   await page.reload({waitUntil:'networkidle'});
   assert.equal(await page.locator('#app').getAttribute('data-mode'),'rings');
@@ -240,14 +245,14 @@ try {
   await page.locator('#knowledge-add').click();
   await page.getByText(/Новая информация сохранена/).waitFor();
   await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeGrowth);
-  const beforeSecond=Number(await page.locator('#app').getAttribute('data-knowledge'));
+  const beforeSecond=await page.evaluate(async()=>(await (await fetch('/api/knowledge/graph')).json()).records.length);
   await page.locator('#knowledge-text').fill('Новая информация: договор поставки и граф оплаты NEXUS');
   await page.locator('#knowledge-add').click();
-  await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeSecond);
-  const beforeThird=Number(await page.locator('#app').getAttribute('data-knowledge'));
+  await page.waitForFunction(async previous=>(await (await fetch('/api/knowledge/graph')).json()).records.length>previous,beforeSecond);
+  const beforeThird=await page.evaluate(async()=>(await (await fetch('/api/knowledge/graph')).json()).records.length);
   await page.locator('#knowledge-text').fill('Дополнительные сведения о работе отдельных агентов');
   await page.locator('#knowledge-add').click();
-  await page.waitForFunction(previous=>Number(document.querySelector('#app')?.dataset.knowledge)>previous,beforeThird);
+  await page.waitForFunction(async previous=>(await (await fetch('/api/knowledge/graph')).json()).records.length>previous,beforeThird);
   await page.waitForFunction(()=>Number(document.querySelector('#app')?.dataset.groupCount)>=2);
   const savedGraph=await page.evaluate(async()=>{
     const response=await fetch('/api/knowledge/graph');
@@ -270,7 +275,7 @@ try {
   await page.locator('#nexus-context-open').click();
   assert.equal(await page.locator('#nexus-card').isVisible(),true);
 
-  assert.match(await page.locator('#nexus-card-meta').textContent(),/Источник.*Локальная заметка/s);
+  assert.match(await page.locator('#nexus-card-meta').textContent(),/Источник.*(Локальная память|Индексированный документ)/s);
   assert.ok(await page.locator('#nexus-card-related button').count()>=1,'Display selected-node links');
   await page.locator('#nexus-card-related button').first().click();
   assert.equal(await page.locator('#nexus-card').isVisible(),true);

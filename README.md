@@ -578,3 +578,9 @@ The chat endpoint now combines its existing memory recall with up to three relev
 ### Contract RAG evidence diagnostics
 
 Contract search now tokenizes Cyrillic queries with Unicode property classes (a previous escaped pattern prevented reliable Russian-word retrieval). After a Cloud.ru answer, a non-blocking lexical evidence audit checks whether answer sentences have overlapping terms in the retrieved contract excerpts and logs the number needing source review. This is **not** entailment verification, does not prove legal correctness, and does not modify the generated answer. Tests cover Cyrillic retrieval and source evidence. Run `npm run test:brain`.
+
+### Indexed text documents in NEXUS cells
+
+The automatic `.old.txt`/`.new.txt` and `.old.md`/`.new.md` contract scan now places a source-linked document card in NEXUS for each indexed text file. A changed file updates the same card. TXT/MD files attached in chat are also indexed when they contain valid UTF-8 text of at most 2 MiB; larger files and other formats remain locally stored without text indexing. NEXUS groups real knowledge into persistent cells of up to 32 records. Select a cell to inspect its member titles and available text excerpts. The page checks for newly indexed records once a minute while open.
+
+Only locally indexed text can appear in contract search; relevant excerpts may be sent to Cloud.ru when chat is configured, as described above. This does not add PDF/DOCX/OCR extraction, a general file manager, semantic document search or verified legal interpretation. Existing attachments are not retroactively indexed until uploaded again.

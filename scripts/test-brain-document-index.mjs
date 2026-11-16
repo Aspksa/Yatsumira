@@ -4,6 +4,8 @@ import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {indexDocumentText,searchDocumentChunks} from "../server/brain-document-index.mjs";
+import {getKnowledgeGraph} from "../server/core-db.mjs";
+import {getNexusCells} from "../server/nexus-cells.mjs";
 import {auditContractAnswer} from "../server/brain-answer-audit.mjs";
 test("document chunks persist with offsets and refresh when the source changes",()=>{
  const cwd=process.cwd(),dir=mkdtempSync(join(tmpdir(),"yatsumira-brain-"));
@@ -13,6 +15,9 @@ test("document chunks persist with offsets and refresh when the source changes",
   const first=indexDocumentText("Договор-1",text);
   assert.equal(first.indexed,true);
   assert.ok(first.chunks>1);
+  const documentNode=getKnowledgeGraph().records.find(record=>record.kind==="document");
+  assert.ok(documentNode);
+  assert.equal(getNexusCells().cells.some(cell=>cell.knowledgeIds.includes(documentNode.id)),true);
   assert.equal(indexDocumentText("Договор-1",text).unchanged,true);
   const found=searchDocumentChunks("оборудования");
   assert.ok(found.length>0);
@@ -20,6 +25,8 @@ test("document chunks persist with offsets and refresh when the source changes",
   assert.equal(found[0].content,text.slice(found[0].start,found[0].end));
   const changed=indexDocumentText("Договор-1","Новый срок оплаты 60 календарных дней.");
   assert.equal(changed.indexed,true);
+  assert.equal(getKnowledgeGraph().records.find(record=>record.id===documentNode.id).content.includes("60 календарных"),true);
+  assert.equal(getKnowledgeGraph().records.filter(record=>record.id===documentNode.id).length,1);
   assert.equal(searchDocumentChunks("оборудования").length,0);
   assert.equal(searchDocumentChunks("календарных")[0].sourceId,"Договор-1");
   indexDocumentText("Договор-2","Срок оплаты 15 календарных дней. Дополнительные условия.");
