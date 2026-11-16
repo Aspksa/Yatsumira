@@ -1,5 +1,5 @@
 import {planMemoryQuery,analyzeMemoryQuestion} from "./memory-v6-intelligence.mjs";
-import {classifyChatMessage,conversationContext,chatContextWindow,persistDialogueAnalysis} from "./chat-v13-intelligence.mjs";
+import {conversationContext,chatContextWindow,persistDialogueAnalysis,auditToolResult} from "./chat-v13-intelligence.mjs";
 import {chooseChatStrategy,answerAudit} from "./chat-v13-research.mjs";
 import {longTermChatContext} from "./memory-v11-longterm.mjs";
 import {recordAnswerAudit} from "./memory-v5-quality.mjs";
@@ -223,6 +223,7 @@ export function cloudApiPlugin() {
               sessionId:input.sessionId,requestId:input.requestId});
             try{
               persistDialogueAnalysis({conversationId:savedExchange.conversationId,exchangeId:savedExchange.exchangeId,query:userQuery,analysis:chatStrategy.analysis});
+              auditToolResult({conversationId:savedExchange.conversationId,exchangeId:savedExchange.exchangeId,tool:"memory-search",parameters:{mode:recall.mode,count:candidateMemories.length},success:true,summary:"Local bounded long-term recall completed"});
             }catch(error){console.error("[YATSUMIRA CHAT v13] Analysis audit:",error?.message||String(error));}
 
             // Diagnostics are best-effort and never block a completed user answer.
