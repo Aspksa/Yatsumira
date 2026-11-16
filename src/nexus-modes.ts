@@ -67,19 +67,30 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
         const angle=section.start+span*(column+.5)/columnCount;
         const radius=Math.min(maxRadius,175+layer*54);
         const ox=Math.cos(angle)*radius,oy=Math.sin(angle)*radius;
-        const cols=Math.max(1,Math.ceil(Math.sqrt(nodes.length)));
-        const gap=9.5;
-        nodes.forEach((node,i)=>{
-          const tx=(i%cols-(cols-1)/2)*gap;
-          const ty=(Math.floor(i/cols)-(Math.ceil(nodes.length/cols)-1)/2)*gap;
-          // Block aligns with its radial sector.
-          positions.set(node.id,{
-            x:ox+Math.cos(angle)*ty-Math.sin(angle)*tx,
-            y:oy+Math.sin(angle)*ty+Math.cos(angle)*tx
-          });
+        // Grow each real-knowledge family as an adjacent hexagonal colony.
+        // Stable IDs keep existing cells in place as new records arrive.
+        const ordered=[...nodes].sort((a,b)=>a.id.localeCompare(b.id));
+        const hexRadius=5.1;
+        const gap=hexRadius*2+1.2;
+        const axial:{q:number;r:number}[]=[{q:0,r:0}];
+        const directions=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+        for(let layer=1;axial.length<ordered.length;layer++){
+          let q=layer,r=0;
+          for(const [dq,dr] of directions.slice(1).concat([directions[0]])){
+            for(let step=0;step<layer;step++){
+              if(axial.length<ordered.length)axial.push({q,r});
+              q+=dq;r+=dr;
+            }
+          }
+        }
+        ordered.forEach((node,i)=>{
+          const {q,r}=axial[i];
+          const tx=gap*(q+r/2),ty=gap*Math.sqrt(3)/2*r;
+          positions.set(node.id,{x:ox+Math.cos(angle)*ty-Math.sin(angle)*tx,
+            y:oy+Math.sin(angle)*ty+Math.cos(angle)*tx});
         });
         groups.push({id:sector+"|"+name,label:name,sector,count:nodes.length,
-          x:ox,y:oy,radius:Math.max(14,cols*gap*.7)});
+          x:ox,y:oy,radius:Math.max(14,Math.sqrt(nodes.length)*gap*.85)});
       }
     }
     return {positions,groups};
