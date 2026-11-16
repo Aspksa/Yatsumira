@@ -79,6 +79,12 @@ try{
   process.env.YATSUMIRA_MEMORY_EMBED_URL="https://embeddings.example/v1/embeddings";
   process.env.YATSUMIRA_MEMORY_EMBED_KEY="fake-unit-test-key";
   process.env.YATSUMIRA_MEMORY_EMBED_MODEL="test/emb";
+  await assert.rejects(
+    embedText("x".repeat(4001)+" api_key=longsensitivecredential12345",{request:async()=>{throw Error("Provider must not be called");}}),
+    /sensitive/i
+  );
+  const privateQuery=await hybridRecall("договор api_key=longsensitivecredential12345",{request:async()=>{throw Error("Provider must not be called");}});
+  assert.equal(privateQuery.mode,"lexical-subword");
   const vector=await embedText("договор",{request:fake});
   assert.equal(vector.vector.length,3);
   const online=await hybridRecall("договор D-123",{limit:3,request:fake});
