@@ -128,6 +128,7 @@ export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
     scheduleMemoryJob("v12-experience",{day});
     scheduleMemoryJob("v12-graph-research",{day});
     scheduleMemoryJob("v12-learning-report",{day});
+    scheduleMemoryJob("v13-dialogue-reflection",{day});
     runMemoryJob();
   }catch(error){onError(error);}};
   const timer=setInterval(job,Math.max(60000,intervalMs));
