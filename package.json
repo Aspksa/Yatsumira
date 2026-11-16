@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test:static": "node --test scripts/test-project.mjs",
     "test:browser": "node scripts/test-browser.mjs",
-    "test:brain": "node --test scripts/test-brain-quality.mjs",
+    "test:brain": "node --test scripts/test-brain-quality.mjs scripts/test-brain-document-index.mjs",
     "contracts:auto": "node scripts/auto-compare-contracts.mjs",
     "test:contracts": "node --test scripts/test-contract-diff.mjs scripts/test-auto-compare-contracts.mjs scripts/test-contract-auto-start.mjs"
   },
