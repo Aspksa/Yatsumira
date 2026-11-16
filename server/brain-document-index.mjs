@@ -29,7 +29,7 @@ export function indexDocumentText(sourceId,text){
   });
 }
 export function searchDocumentChunks(query,{limit=8}={}){
-  const terms=[...new Set(String(query??"").toLowerCase().match(/[\\p{L}\\p{N}]{3,}/gu)||[])].slice(0,12);
+  const terms=[...new Set(String(query??"").toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)||[])].slice(0,12);
   if(!terms.length)return [];
   return withCoreDatabase(db=>{
     schema(db);
