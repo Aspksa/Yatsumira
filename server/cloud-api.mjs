@@ -227,11 +227,10 @@ export function cloudApiPlugin() {
 
             // Diagnostics are best-effort and never block a completed user answer.
             try{recordAnswerAudit(userQuery,answer,candidateMemories);}
-            // Bounded lexical answer check is diagnostic only, never proof of truth.
-            try{answerAudit(userQuery,answer,candidateMemories);}catch(error){
-              console.error("[YATSUMIRA CHAT v13] Answer check:",error?.message||String(error));
-            }
             catch(error){console.error("[YATSUMIRA CORE] Evidence audit:",error?.message||String(error));}
+            // Bounded lexical answer check is diagnostic only, never proof of truth.
+            try{answerAudit(userQuery,answer,candidateMemories);}
+            catch(error){console.error("[YATSUMIRA CHAT v13] Answer check:",error?.message||String(error));}
             return json(res,200,{answer,model});
           }
           return json(res,404,{error:"Unknown endpoint"});
