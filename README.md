@@ -574,3 +574,7 @@ The existing automatic contract-folder scan now also persists the **full UTF-8 t
 ### Contract fragments in chat answers
 
 The chat endpoint now combines its existing memory recall with up to three relevant locally indexed contract text fragments. Each fragment includes the contract filename, chunk number, original offsets and an excerpt of at most 1000 characters. The LLM is instructed to treat these excerpts as untrusted source evidence and cite the filename/chunk number. **Privacy notice:** when Cloud.ru chat is enabled, selected contract excerpts (not the original full files or absolute local paths) are sent to Cloud.ru as part of the model prompt. Do not index confidential contracts unless this transmission is acceptable. The local lexical search is heuristic, not proof of legal correctness; verify quotations against the original document. No agents, OCR or PDF/DOCX extraction have been added.
+
+### Contract RAG evidence diagnostics
+
+Contract search now tokenizes Cyrillic queries with Unicode property classes (a previous escaped pattern prevented reliable Russian-word retrieval). After a Cloud.ru answer, a non-blocking lexical evidence audit checks whether answer sentences have overlapping terms in the retrieved contract excerpts and logs the number needing source review. This is **not** entailment verification, does not prove legal correctness, and does not modify the generated answer. Tests cover Cyrillic retrieval and source evidence. Run `npm run test:brain`.
