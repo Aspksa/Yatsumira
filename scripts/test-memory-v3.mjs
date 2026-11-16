@@ -69,6 +69,15 @@ try{
     "{invalid json",graph[1].id,"test/emb"));
   assert.equal(vectorRecall([1,.01,0],{model:"test/emb"})[0].id,graph[0].id);
   storeEmbedding(graph[1].id,"test/emb",[0,1,0]);
+  // Even old, already-indexed sensitive memories must never appear in
+  // direct vector recall results (not just the hybrid wrapper).
+  withCoreDatabase(db=>db.prepare("UPDATE memory_entries SET content=? WHERE id=?").run(
+    "api_key=verysecretcredential123456789",graph[1].id));
+  storeEmbedding(graph[1].id,"test/emb",[1,0,0]);
+  assert.ok(!vectorRecall([1,0,0],{model:"test/emb"}).some(x=>x.id===graph[1].id));
+  withCoreDatabase(db=>db.prepare("UPDATE memory_entries SET content=? WHERE id=?").run(
+    "Изменённое условие договора: оплата через 30 календарных дней.",graph[1].id));
+  storeEmbedding(graph[1].id,"test/emb",[0,1,0]);
   const lexical=recallMemory("договор D-123 срок оплаты",{limit:10});
   const fused=reciprocalFusion(lexical,semantic,{limit:10});
   assert.equal(fused[0].id,graph[0].id);

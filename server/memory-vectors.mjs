@@ -4,6 +4,7 @@
  * No pseudo-vector is ever called an embedding. Provider runtime is optional.
  */
 import {withCoreDatabase} from "./core-db.mjs";
+import {confidential} from "./memory-store.mjs";
 const validVector=x=>Array.isArray(x)&&x.length>=2&&x.length<=4096&&x.every(n=>Number.isFinite(n))&&Math.hypot(...x)>0;
 function normalized(vector){
   if(!validVector(vector))throw Object.assign(new Error("Invalid embedding vector"),{status:400});
@@ -33,6 +34,9 @@ export function vectorRecall(vector,{model,limit=15}={}){
     // Do not persist repairs here: search remains a read-only operation.
     const matches=[];
     for(const row of rows){
+      // Apply the same confidentiality guard to direct vector recall as to
+      // hybrid recall, including memories indexed before the guard existed.
+      if(confidential.test(row.content))continue;
       let embedding;
       try{embedding=JSON.parse(row.vector_json);}catch{continue;}
       if(!Array.isArray(embedding)||embedding.length!==query.length||
