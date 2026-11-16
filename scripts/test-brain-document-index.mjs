@@ -4,6 +4,7 @@ import {mkdtempSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {indexDocumentText,searchDocumentChunks} from "../server/brain-document-index.mjs";
+import {auditContractAnswer} from "../server/brain-answer-audit.mjs";
 test("document chunks persist with offsets and refresh when the source changes",()=>{
  const cwd=process.cwd(),dir=mkdtempSync(join(tmpdir(),"yatsumira-brain-"));
  try{
@@ -25,5 +26,20 @@ test("document chunks persist with offsets and refresh when the source changes",
   const ranked=searchDocumentChunks("оплаты календарных");
   assert.ok(ranked.length>=2);
   assert.ok(ranked.every(x=>x.score>0));
+ }finally{process.chdir(cwd);rmSync(dir,{recursive:true,force:true});}
+});
+
+test("Cyrillic RAG query and source-linked answer audit",()=>{
+ const cwd=process.cwd(),dir=mkdtempSync(join(tmpdir(),"yatsumira-cyrillic-"));
+ try{
+  process.chdir(dir);
+  indexDocumentText("contract-42","Поставка оборудования. Срок оплаты составляет тридцать рабочих дней.");
+  const found=searchDocumentChunks("срок оплаты оборудования");
+  assert.ok(found.length>0,"Cyrillic tokens must retrieve matching contract");
+  const audit=auditContractAnswer("Срок оплаты составляет тридцать рабочих дней.",found.map(x=>({sourceId:x.sourceId,chunkIndex:x.chunkIndex,excerpt:x.content})));
+  assert.equal(audit.verified,false);
+  assert.ok(audit.claims[0].possibleSources.length>0);
+  const unsupported=auditContractAnswer("Гарантия распространяется на весь автопарк предприятия.",[]);
+  assert.equal(unsupported.unsupportedClaimCount,1);
  }finally{process.chdir(cwd);rmSync(dir,{recursive:true,force:true});}
 });
