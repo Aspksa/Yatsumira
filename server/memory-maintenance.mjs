@@ -1,9 +1,11 @@
 /**
  * CORE v3 bounded, resumable background maintenance.
- * Never changes verified facts or calls a cloud provider. USB-safe SQLite transactions.
+ * Local jobs never change verified facts. Optional configured embeddings use
+ * a separate bounded background timer. USB-safe SQLite transactions.
  */
 import {randomUUID} from "node:crypto";
 import {withCoreDatabase} from "./core-db.mjs";
+import {embeddingConfigured,indexMissingEmbeddings} from "./memory-provider.mjs";
 import {inspectSourceFacts,researchEntities} from "./memory-intelligence.mjs";
 import {normalizeMemory} from "./memory-store.mjs";
 import {indexUniversalGraph} from "./universal-memory-graph.mjs";
@@ -111,6 +113,17 @@ export function recordRetrievalEvaluation(cases,retrieve){
   return report;
 }
 export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
+  let semanticRunning=false;
+  let stopped=false;
+  // The embedding provider is opt-in. Never block the synchronous SQLite jobs
+  // or launch overlapping HTTP batches when a provider is slow.
+  const semanticTick=async()=>{
+    if(stopped||semanticRunning||!embeddingConfigured())return;
+    semanticRunning=true;
+    try{await indexMissingEmbeddings({batch:4});}
+    catch(error){onError(error);}
+    finally{semanticRunning=false;}
+  };
   // Recover checkpointed jobs once when the local server starts; no network calls.
   try{recoverInterruptedJobs();}catch(error){onError(error);}
   const job=()=>{try{
@@ -133,5 +146,8 @@ export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
   }catch(error){onError(error);}};
   const timer=setInterval(job,Math.max(60000,intervalMs));
   timer.unref?.();
-  return ()=>clearInterval(timer);
+  // A separate, bounded cadence prevents provider latency from stalling chat.
+  const semanticTimer=setInterval(()=>{void semanticTick();},Math.max(60000,intervalMs));
+  semanticTimer.unref?.();
+  return ()=>{stopped=true;clearInterval(timer);clearInterval(semanticTimer);};
 }
