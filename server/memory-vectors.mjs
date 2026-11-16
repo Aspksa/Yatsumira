@@ -29,11 +29,19 @@ export function vectorRecall(vector,{model,limit=15}={}){
   const query=normalized(vector);
   return withCoreDatabase(db=>{
     const rows=db.prepare("SELECT m.id,m.content,m.source_kind AS sourceKind,m.source_id AS sourceId,m.verified,v.vector_json FROM memory_vectors v JOIN memory_entries m ON m.id=v.memory_id WHERE v.model=? AND v.dimensions=? AND m.state='active' ORDER BY m.rowid DESC LIMIT 5000").all(model,query.length);
-    return rows.map(row=>{
-      const embedding=JSON.parse(row.vector_json);
+    // A malformed or legacy vector must not break recall for all other rows.
+    // Do not persist repairs here: search remains a read-only operation.
+    const matches=[];
+    for(const row of rows){
+      let embedding;
+      try{embedding=JSON.parse(row.vector_json);}catch{continue;}
+      if(!Array.isArray(embedding)||embedding.length!==query.length||
+         !embedding.every(x=>typeof x==="number"&&Number.isFinite(x)))continue;
       const score=query.reduce((sum,x,i)=>sum+x*embedding[i],0);
-      return {id:row.id,content:row.content,sourceKind:row.sourceKind,sourceId:row.sourceId,verified:!!row.verified,score:Number(score.toFixed(5)),method:"vector"};
-    }).sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Math.min(50,Number(limit)||15)));
+      if(!Number.isFinite(score))continue;
+      matches.push({id:row.id,content:row.content,sourceKind:row.sourceKind,sourceId:row.sourceId,verified:!!row.verified,score:Number(score.toFixed(5)),method:"vector"});
+    }
+    return matches.sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Math.min(50,Number(limit)||15)));
   });
 }
 export function vectorOverview(){
