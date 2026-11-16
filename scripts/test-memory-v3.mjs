@@ -171,6 +171,26 @@ try{
   assert.equal(nextBatch.indexed,1);
   assert.equal(finalBatch.indexed,1);
   assert.equal((await indexMissingEmbeddings({batch:1,request:fake})).indexed,0);
+  // Concurrent manual/background calls must not send the same row twice.
+  addKnowledge({content:"Документ для проверки одновременной фоновой индексации",sector:1,source:"note"});
+  let releaseRequest;
+  const gate=new Promise(resolve=>{releaseRequest=resolve;});
+  let firstRequestStarted;
+  const started=new Promise(resolve=>{firstRequestStarted=resolve;});
+  let providerCalls=0;
+  const running=indexMissingEmbeddings({batch:1,request:async(url,opts)=>{
+    providerCalls++;
+    firstRequestStarted();
+    await gate;
+    return fake(url,opts);
+  }});
+  await started;
+  const busy=await indexMissingEmbeddings({batch:1,request:fake});
+  assert.equal(busy.busy,true);
+  assert.equal(busy.indexed,0);
+  releaseRequest();
+  assert.equal((await running).indexed,1);
+  assert.equal(providerCalls,1);
   for(const name of vars)delete process.env[name];
 
   for(let i=0;i<4;i++)saveExchange({conversationId:"default",exchangeId:"summary-"+i,user:"Я проверяю условия договора поставки "+i,assistant:"Тестовый ответ модели "+i,model:"test/model"});

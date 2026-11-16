@@ -68,7 +68,13 @@ export async function embedText(text,{request=fetch}={}){
 // Progress is volatile: no extra writes to a removable USB database.
 // Each model resumes beyond the last examined row across background ticks.
 const embeddingScanCursors=new Map();
+// Serialize manual and background indexing to prevent duplicate provider calls
+// and cursor races when both are triggered at the same time.
+let embeddingIndexRunning=false;
 export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
+  if(embeddingIndexRunning)return {enabled:true,indexed:0,busy:true};
+  embeddingIndexRunning=true;
+  try{
   const config=settings();
   if(!config)return {enabled:false,indexed:0};
   const target=Math.max(1,Math.min(20,Math.trunc(Number(batch))||12));
@@ -109,6 +115,7 @@ export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
   }
   embeddingScanCursors.set(config.model,cursor);
   return {enabled:true,indexed,skipped,failed,remainingUnknown:true,model:config.model};
+  }finally{embeddingIndexRunning=false;}
 }
 function rerankerSettings(){
   const url=process.env.YATSUMIRA_MEMORY_RERANK_URL||"";
