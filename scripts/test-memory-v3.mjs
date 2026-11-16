@@ -64,6 +64,11 @@ try{
   assert.throws(()=>storeEmbedding(graph[0].id,"test/emb",[1,0]),/dimension mismatch/i);
   const semantic=vectorRecall([1,.01,0],{model:"test/emb"});
   assert.equal(semantic[0].id,graph[0].id);
+  // Corrupt/legacy vector JSON must be ignored, not crash all semantic search.
+  withCoreDatabase(db=>db.prepare("UPDATE memory_vectors SET vector_json=? WHERE memory_id=? AND model=?").run(
+    "{invalid json",graph[1].id,"test/emb"));
+  assert.equal(vectorRecall([1,.01,0],{model:"test/emb"})[0].id,graph[0].id);
+  storeEmbedding(graph[1].id,"test/emb",[0,1,0]);
   const lexical=recallMemory("договор D-123 срок оплаты",{limit:10});
   const fused=reciprocalFusion(lexical,semantic,{limit:10});
   assert.equal(fused[0].id,graph[0].id);
