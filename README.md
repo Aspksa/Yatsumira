@@ -558,3 +558,7 @@ npm run test:contracts
 ```
 
 The first command discovers all `*.old.txt` / `*.new.txt` (also `.md`) pairs and creates separate JSON reports in `Aspksa/Документы/Договоры/reports`. It never overwrites an existing report, skips incomplete pairs, and reports failures. For a custom folder: `node scripts/auto-compare-contracts.mjs "D:\\Contracts" "D:\\Reports"`. This is a one-shot automatic batch command, **not** continuous background monitoring. It does not yet read PDF/DOCX, run OCR, or integrate with the web UI. Files stay local. Review results against the original documents; extraction currently examines only the first 4000 characters of each text.
+
+### Automatic comparison during normal Yatsumira startup
+
+When the local Vite server starts (including through `YATSUMIRA.bat`), the existing CORE maintenance scheduler now checks `Aspksa/Документы/Договоры` immediately and then every 10 minutes. Put matching `.old.txt`/`.new.txt` or `.old.md`/`.new.md` revisions there; JSON reports appear automatically in the `reports` subfolder. You no longer need to run `npm run contracts:auto` during normal operation. Missing folders are silently ignored; existing reports are not overwritten. The checks stop when the server closes. This is **polling while Yatsumira runs**, not a Windows background service, and DOCX/PDF/OCR are not yet supported.
