@@ -27,10 +27,14 @@ export function extractCandidates(text){
       const title=before.match(/(?:договор(?:а|у|ом)?|контракт(?:а|у|ом)?)\s+(?:№\s*)?([\wА-Яа-я-]{2,40})/iu);
       // No guessed contract identity: unscoped claims are kept separate by source.
       const subject=title?"contract:"+clean(title[1]):"source";
-      // Working and calendar days are legally different obligations. Do not
-      // create false contradictions by comparing them as the same field.
-      const predicate=template.predicate==="payment_days" && /рабочих/iu.test(match[2]||"")
-        ?"payment_working_days":template.predicate;
+      // An unspecified day type is NOT equivalent to calendar days. Keep
+      // working, calendar and unspecified payment deadlines distinct so
+      // automated conflict checks do not invent legal interpretations.
+      let predicate=template.predicate;
+      if(template.predicate==="payment_days"){
+        if(/рабочих/iu.test(match[2]||""))predicate="payment_working_days";
+        else if(/календарных/iu.test(match[2]||""))predicate="payment_calendar_days";
+      }
       results.push({subject,predicate,object,excerpt:match[0].slice(0,250),confidence:subject==="source"?.42:.65});
     }
   }
