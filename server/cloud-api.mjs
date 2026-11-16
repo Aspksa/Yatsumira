@@ -219,11 +219,10 @@ export function cloudApiPlugin() {
             if (typeof answer !== "string" || !answer.trim()) return json(res,502,{error:"Cloud.ru вернул пустой ответ"});
             // Save the complete user/assistant pair atomically only after a real response.
             // This does not mark an AI output as a verified fact.
-            commitAssistantExchange({messages:input.messages,answer,model,
+            const savedExchange=commitAssistantExchange({messages:input.messages,answer,model,
               sessionId:input.sessionId,requestId:input.requestId});
             try{
-              const exchangeId=typeof input.requestId==="string"&&/^[\w-]{1,100}$/.test(input.requestId)?input.requestId:null;
-              if(exchangeId)persistDialogueAnalysis({conversationId:sessionId,exchangeId,query:userQuery,analysis:chatStrategy.analysis});
+              persistDialogueAnalysis({conversationId:savedExchange.conversationId,exchangeId:savedExchange.exchangeId,query:userQuery,analysis:chatStrategy.analysis});
             }catch(error){console.error("[YATSUMIRA CHAT v13] Analysis audit:",error?.message||String(error));}
 
             // Diagnostics are best-effort and never block a completed user answer.
