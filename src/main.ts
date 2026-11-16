@@ -1,4 +1,5 @@
 import "./style.css";
+import {createAttachmentController,renderSafeAssistantText} from "./chat-v14";
 import { NexusView, type NexusNode } from "./nexus";
 import { isNexusMode } from "./nexus-modes";
 
@@ -299,42 +300,57 @@ cloudRemove.addEventListener("click",async()=>{
   }catch(err){notify(err instanceof Error?err.message:"Не удалось удалить ключ",true);}
   finally{cloudRemove.disabled=false;}
 });
+const attachments=createAttachmentController(
+  document.querySelector<HTMLElement>(".chat-panel")!,
+  document.querySelector<HTMLDivElement>("#attachment-tray")!,
+  document.querySelector<HTMLInputElement>("#chat-file-input")!,
+  document.querySelector<HTMLButtonElement>("#attach-files")!,
+  text=>addMessage(text,"system")
+);
 function addMessage(text:string,kind:"user"|"system"|"assistant"):void {
   const intro=log!.querySelector(".chat-intro");
   if (intro) intro.remove();
   const el=document.createElement("div");
   el.className="message "+kind;
-  el.textContent=text;
+  if(kind==="assistant")renderSafeAssistantText(el,text);else el.textContent=text;
   log!.appendChild(el);
   log!.scrollTop=log!.scrollHeight;
 }
 async function submitMessage():Promise<void> {
   if(busy)return;
   const text=input!.value.trim();
-  if(!text)return;
+  if(!text&&!attachments.size)return;
   if(!connected || !selectedModel){
     addMessage("Сначала подключите Cloud.ru и выберите модель в настройках.","system");
     return;
   }
   busy=true;submitButton.disabled=true;
-  addMessage(text,"user");
-  input!.value="";input!.style.height="auto";
-  const outgoing:ChatMessage[]=[...history,{role:"user" as const,content:text}].slice(-29);
+  const attachButton=document.querySelector<HTMLButtonElement>("#attach-files")!;
+  attachButton.disabled=true;
   try{
+    const uploaded=await attachments.uploadAll();
+    // Content is never silently sent to the model. Only the filename and UUID
+    // are included, clearly noting that binary contents have not been indexed.
+    const references=uploaded.map(x=>"Локальный файл: "+x.name+" (ID "+x.id+"). Содержимое файла пока не индексировано и недоступно для анализа.").join("\n");
+    const prompt=[text,references].filter(Boolean).join("\n\n");
+    if(prompt.length>4000)throw new Error("Текст и описания файлов превышают 4000 символов");
+    addMessage(text+(uploaded.length?"\n📎 "+uploaded.map(x=>x.name).join(", "):""),"user");
+    input!.value="";input!.style.height="auto";attachments.clear();
+    const outgoing:ChatMessage[]=[...history,{role:"user" as const,content:prompt}].slice(-29);
     const result=await requestApi<{answer:string}>("chat",{method:"POST",body:JSON.stringify({messages:outgoing})});
     history.splice(0,history.length,...outgoing,{role:"assistant",content:result.answer});
     if(history.length>28)history.splice(0,history.length-28);
     addMessage(result.answer,"assistant");
     // Store an unverified dialog note rather than treating the message as confirmed truth.
     try {
-      const graph=await graphRequest("ingest",{method:"POST",body:JSON.stringify({content:text,sector:0,source:"chat"})});
+      const graph=await graphRequest("ingest",{method:"POST",body:JSON.stringify({content:prompt,sector:0,source:"chat"})});
       applyGraph(graph);
     }catch(error){
       knowledgeStatus!.textContent="Не удалось сохранить сообщение в NEXUS: "+(error instanceof Error?error.message:"ошибка");
     }
   }catch(err){
     addMessage("Ошибка Cloud.ru: "+(err instanceof Error?err.message:"неизвестная ошибка"),"system");
-  }finally{busy=false;submitButton.disabled=false;input!.focus();}
+  }finally{busy=false;submitButton.disabled=false;attachButton.disabled=false;input!.focus();}
 }
 form.addEventListener("submit",(e:SubmitEvent)=>{e.preventDefault();void submitMessage();});
 input.addEventListener("keydown",(e:KeyboardEvent)=>{
