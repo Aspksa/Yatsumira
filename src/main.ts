@@ -202,8 +202,18 @@ async function graphRequest(path:string,init:RequestInit={}):Promise<GraphRespon
   if(!response.ok)throw new Error(data.error || "Ошибка локального графа");
   return data;
 }
+let latestGraphRevision=0;
 function applyGraph(data:GraphResponse):void {
   nexus.setKnowledge(data.records,data.links);
+  const revision=++latestGraphRevision;
+  // The cell API is local and derived from persisted SQLite knowledge.
+  void fetch("/api/knowledge/cells",{cache:"no-store"}).then(async response=>{
+    if(!response.ok)throw new Error("Cell API unavailable");
+    return response.json() as Promise<{cells:import("./nexus").NexusCell[];truncated:boolean}>;
+  }).then(result=>{
+    if(revision!==latestGraphRevision||result.truncated)return;
+    nexus.setCells(result.cells,data.records,data.links);
+  }).catch(error=>console.warn("[NEXUS] Cell view fallback:",error));
   knowledgeStatus!.textContent="Сохранено записей: "+data.records.length+" · связей: "+data.links.length;
 }
 async function refreshGraph():Promise<void> {
