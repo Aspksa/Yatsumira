@@ -244,7 +244,7 @@ try{
     process.env.YATSUMIRA_MEMORY_EMBED_MODEL="test/emb";
     const errors=[];
     const stop=startCoreMaintenance({onError:error=>errors.push(error)});
-    assert.equal(callbacks.length,2);
+    assert.equal(callbacks.length,3);
     await callbacks[1]();
     await new Promise(resolve=>setImmediate(resolve));
     assert.equal(errors.length,1);
