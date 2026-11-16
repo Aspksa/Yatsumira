@@ -162,6 +162,15 @@ try{
   const deepScan=await indexMissingEmbeddings({batch:1,request:fake});
   assert.equal(deepScan.indexed,1,"Cursor scan must reach an eligible memory beyond 1000 sensitive rows");
   assert.ok(deepScan.skipped>=1050);
+  // Cursor progress survives separate bounded batches without re-embedding
+  // completed rows or skipping a new eligible row.
+  addKnowledge({content:"Дополнительный документ: уточнение порядка поставки номер девять",sector:1,source:"note"});
+  addKnowledge({content:"Дополнительный документ: порядок приёмки товара номер десять",sector:1,source:"note"});
+  const nextBatch=await indexMissingEmbeddings({batch:1,request:fake});
+  const finalBatch=await indexMissingEmbeddings({batch:1,request:fake});
+  assert.equal(nextBatch.indexed,1);
+  assert.equal(finalBatch.indexed,1);
+  assert.equal((await indexMissingEmbeddings({batch:1,request:fake})).indexed,0);
   for(const name of vars)delete process.env[name];
 
   for(let i=0;i<4;i++)saveExchange({conversationId:"default",exchangeId:"summary-"+i,user:"Я проверяю условия договора поставки "+i,assistant:"Тестовый ответ модели "+i,model:"test/model"});
