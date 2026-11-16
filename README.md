@@ -547,3 +547,14 @@ node --test scripts/test-contract-diff.mjs
 ```
 
 Supported inputs are `.txt` and `.md` (maximum 2 MiB each). Omit the third argument to print JSON to the console. Existing report files are never overwritten. The report includes added, removed and changed extracted clauses with source excerpts, and every change requires human review. The extraction is heuristic and currently examines only the first 4000 characters of each text; absence of a clause in the report does not prove that the contract lacks it. DOCX/PDF and scanned images are **not** parsed by this command; export their text first. Do not treat the report as a legal opinion.
+
+## Automatic offline contract comparison
+
+Place matching UTF-8 text exports in `Aspksa/Документы/Договоры` under the project folder, for example `Поставка.old.txt` and `Поставка.new.txt`. Then run:
+
+```sh
+npm run contracts:auto
+npm run test:contracts
+```
+
+The first command discovers all `*.old.txt` / `*.new.txt` (also `.md`) pairs and creates separate JSON reports in `Aspksa/Документы/Договоры/reports`. It never overwrites an existing report, skips incomplete pairs, and reports failures. For a custom folder: `node scripts/auto-compare-contracts.mjs "D:\\Contracts" "D:\\Reports"`. This is a one-shot automatic batch command, **not** continuous background monitoring. It does not yet read PDF/DOCX, run OCR, or integrate with the web UI. Files stay local. Review results against the original documents; extraction currently examines only the first 4000 characters of each text.
