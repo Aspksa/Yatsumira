@@ -6,7 +6,7 @@ import {withCoreDatabase,addKnowledge,saveExchange,coreStatus} from "../server/c
 import {recallMemory} from "../server/long-memory.mjs";
 import {storeEmbedding,vectorRecall,vectorOverview,reciprocalFusion,rerankCandidates} from "../server/memory-vectors.mjs";
 import {embedText,indexMissingEmbeddings,hybridRecall,rerankWithProvider} from "../server/memory-provider.mjs";
-import {extractCandidates,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors,memoryLayers,reviewCandidateFact,resolveMemoryConflict} from "../server/memory-intelligence.mjs";
+import {extractCandidates,compareContractTerms,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors,memoryLayers,reviewCandidateFact,resolveMemoryConflict} from "../server/memory-intelligence.mjs";
 import {consolidateStep,summarizeConversation,memoryMaintenanceStatus,evaluateRetrieval,recordRetrievalEvaluation,startCoreMaintenance} from "../server/memory-maintenance.mjs";
 
 const savedCwd=process.cwd();
@@ -26,6 +26,19 @@ try{
   assert.ok(wordTerms.some(x=>x.predicate==="payment_working_days"&&x.object==="30"));
   assert.ok(wordTerms.some(x=>x.predicate==="payment_calendar_days"&&x.object==="45"));
   assert.ok(!wordTerms.some(x=>x.predicate==="payment_days"));
+  const revision=compareContractTerms(
+    "Договор № D-123: срок оплаты составляет 30 рабочих дней. Сумма договора составляет 100000 руб.",
+    "Договор № D-123: срок оплаты составляет 45 рабочих дней. Сумма договора составляет 100000 руб."
+  );
+  assert.ok(revision.changes.some(x=>x.predicate==="payment_working_days"&&x.status==="changed"&&x.before.includes("30")&&x.after.includes("45")));
+  assert.ok(!revision.changes.some(x=>x.predicate==="contract_amount"));
+  const changedUnits=compareContractTerms(
+    "Договор № D-123: срок оплаты составляет 30 рабочих дней.",
+    "Договор № D-123: срок оплаты составляет 30 календарных дней."
+  );
+  assert.ok(changedUnits.changes.some(x=>x.predicate==="payment_working_days"&&x.status==="removed"));
+  assert.ok(changedUnits.changes.some(x=>x.predicate==="payment_calendar_days"&&x.status==="added"));
+  assert.ok(changedUnits.changes.every(x=>x.requiresReview));
   const first=addKnowledge({content:"Договор № D-123. Срок оплаты составляет 30 дней. ООО «Северный Берег» выполняет поставку.",sector:1,source:"note"});
   const second=addKnowledge({content:"Договор № D-123. Срок оплаты составляет 45 дней. ООО «Северный Берег» уточняет условия.",sector:1,source:"note"});
   assert.equal(first.added,true);
