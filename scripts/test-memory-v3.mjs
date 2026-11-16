@@ -17,6 +17,10 @@ try{
   process.chdir(dir);
   assert.equal(coreStatus().version,13);
   assert.equal(extractCandidates("Договор № D-123: срок оплаты составляет 30 дней.").some(x=>x.predicate==="payment_days"&&x.object==="30"),true);
+  const paymentTerms=extractCandidates("Договор № D-123: срок оплаты составляет 30 рабочих дней. Договор № D-123: срок оплаты составляет 30 календарных дней.");
+  assert.ok(paymentTerms.some(x=>x.predicate==="payment_working_days"&&x.object==="30"));
+  assert.ok(paymentTerms.some(x=>x.predicate==="payment_days"&&x.object==="30"));
+  assert.ok(!paymentTerms.some(x=>x.predicate==="payment_days"&&/рабочих/u.test(x.excerpt)));
   const first=addKnowledge({content:"Договор № D-123. Срок оплаты составляет 30 дней. ООО «Северный Берег» выполняет поставку.",sector:1,source:"note"});
   const second=addKnowledge({content:"Договор № D-123. Срок оплаты составляет 45 дней. ООО «Северный Берег» уточняет условия.",sector:1,source:"note"});
   assert.equal(first.added,true);

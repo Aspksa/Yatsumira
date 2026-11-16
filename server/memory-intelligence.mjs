@@ -12,7 +12,7 @@ export function extractCandidates(text){
   const input=String(text||"").slice(0,4000);
   const results=[];
   const templates=[
-    {predicate:"payment_days",re:/(?:срок\s+оплаты|оплата\s+через)\s*(?:составляет\s*)?(\d{1,4})\s*(?:календарных\s+|рабочих\s+)?дн(?:ей|я|ь)/giu},
+    {predicate:"payment_days",re:/(?:срок\s+оплаты|оплата\s+через)\s*(?:составляет\s*)?(\d{1,4})\s*(календарных\s+|рабочих\s+)?дн(?:ей|я|ь)/giu},
     {predicate:"payment_days",re:/срок\s+оплаты\s*(?:составляет\s*)?(тридцать|сорок\s+пять|шестьдесят)\s+дн(?:ей|я|ь)/giu},
     {predicate:"contract_amount",re:/(?:стоимость|сумма)\s+(?:договора|контракта)\s*(?:составляет\s*)?([\d\s]{2,20})\s*(?:руб|₽)/giu},
     {predicate:"deadline",re:/(?:срок\s+исполнения|срок\s+поставки)\s*(?:до|:)?\s*(\d{2}\.\d{2}\.\d{4})/giu}
@@ -27,7 +27,11 @@ export function extractCandidates(text){
       const title=before.match(/(?:договор(?:а|у|ом)?|контракт(?:а|у|ом)?)\s+(?:№\s*)?([\wА-Яа-я-]{2,40})/iu);
       // No guessed contract identity: unscoped claims are kept separate by source.
       const subject=title?"contract:"+clean(title[1]):"source";
-      results.push({subject,predicate:template.predicate,object,excerpt:match[0].slice(0,250),confidence:subject==="source"?.42:.65});
+      // Working and calendar days are legally different obligations. Do not
+      // create false contradictions by comparing them as the same field.
+      const predicate=template.predicate==="payment_days" && /рабочих/iu.test(match[2]||"")
+        ?"payment_working_days":template.predicate;
+      results.push({subject,predicate,object,excerpt:match[0].slice(0,250),confidence:subject==="source"?.42:.65});
     }
   }
   return results.slice(0,12);
