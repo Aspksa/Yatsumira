@@ -3,6 +3,7 @@
  * and key must be explicitly configured; Cloud.ru chat API does not imply one.
  * Secrets are never persisted in SQLite or returned through HTTP.
  */
+import {createHash} from "node:crypto";
 import {withCoreDatabase} from "./core-db.mjs";
 import {confidential} from "./memory-store.mjs";
 import {recallMemory} from "./long-memory.mjs";
@@ -30,7 +31,7 @@ async function cachedQueryEmbedding(text,{request=fetch}={}){
   if(request!==fetch)return embedText(text,{request});
   const config=settings();
   if(!config)return embedText(text,{request});
-  const key=JSON.stringify([config.url,config.model,text]);
+  const key=createHash("sha256").update(JSON.stringify([config.url,config.model,config.key,text])).digest("hex");
   const existing=queryCache.get(key);
   if(existing && Date.now()-existing.at<QUERY_CACHE_TTL_MS){
     queryCache.delete(key);queryCache.set(key,existing);
