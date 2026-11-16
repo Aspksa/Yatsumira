@@ -3,6 +3,7 @@
  * and key must be explicitly configured; Cloud.ru chat API does not imply one.
  * Secrets are never persisted in SQLite or returned through HTTP.
  */
+import {createHash} from "node:crypto";
 import {withCoreDatabase} from "./core-db.mjs";
 import {confidential} from "./memory-store.mjs";
 import {recallMemory} from "./long-memory.mjs";
@@ -21,6 +22,27 @@ function settings(){
   return {url:parsed.href,key,model};
 }
 export function embeddingConfigured(){return !!settings();}
+// Query embeddings are short-lived and bounded: avoid duplicate provider charges
+// for repeated chat questions without writing potentially private text to disk.
+const queryCache=new Map();
+const QUERY_CACHE_MAX=64, QUERY_CACHE_TTL_MS=5*60*1000;
+async function cachedQueryEmbedding(text,{request=fetch}={}){
+  // Tests and injected transports must not share cached network responses.
+  if(request!==fetch)return embedText(text,{request});
+  const config=settings();
+  if(!config)return embedText(text,{request});
+  const key=createHash("sha256").update(JSON.stringify([config.url,config.model,config.key,text])).digest("hex");
+  const existing=queryCache.get(key);
+  if(existing && Date.now()-existing.at<QUERY_CACHE_TTL_MS){
+    queryCache.delete(key);queryCache.set(key,existing);
+    return existing.value;
+  }
+  queryCache.delete(key);
+  const value=await embedText(text,{request});
+  queryCache.set(key,{at:Date.now(),value});
+  while(queryCache.size>QUERY_CACHE_MAX)queryCache.delete(queryCache.keys().next().value);
+  return value;
+}
 export async function embedText(text,{request=fetch}={}){
   const config=settings();
   if(!config)throw Object.assign(new Error("Embedding provider not configured"),{status:503});
@@ -110,7 +132,7 @@ export async function hybridRecall(query,{limit=8,request=fetch}={}){
   const local=graphCombined.length?reciprocalFusion(lexical,graphCombined,{limit:Math.max(15,limit*3)}):lexical;
   if(!settings())return {mode:"lexical-subword",results:local.slice(0,limit),graphResults:associations.length};
   try{
-    const embedding=await embedText(query,{request});
+    const embedding=await cachedQueryEmbedding(query,{request});
     const semantic=vectorRecall(embedding.vector,{model:embedding.model,limit:Math.min(50,limit*3)});
     // All results must obey the same secret filter as lexical recall.
     const filtered=semantic.filter(row=>!confidential.test(row.content));
