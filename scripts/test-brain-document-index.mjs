@@ -21,5 +21,9 @@ test("document chunks persist with offsets and refresh when the source changes",
   assert.equal(changed.indexed,true);
   assert.equal(searchDocumentChunks("оборудования").length,0);
   assert.equal(searchDocumentChunks("календарных")[0].sourceId,"Договор-1");
+  indexDocumentText("Договор-2","Срок оплаты 15 календарных дней. Дополнительные условия.");
+  const ranked=searchDocumentChunks("оплаты календарных");
+  assert.ok(ranked.length>=2);
+  assert.ok(ranked.every(x=>x.score>0));
  }finally{process.chdir(cwd);rmSync(dir,{recursive:true,force:true});}
 });
