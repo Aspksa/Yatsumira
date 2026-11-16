@@ -46,7 +46,11 @@ async function cachedQueryEmbedding(text,{request=fetch}={}){
 export async function embedText(text,{request=fetch}={}){
   const config=settings();
   if(!config)throw Object.assign(new Error("Embedding provider not configured"),{status:503});
-  const content=String(text??"").slice(0,4000);
+  const original=String(text??"");
+  // Validate the entire input before truncation so a secret past the 4k
+  // provider limit cannot be hidden from the confidentiality guard.
+  if(confidential.test(original))throw Object.assign(new Error("Embedding input invalid or sensitive"),{status:400});
+  const content=original.slice(0,4000);
   if(!content||confidential.test(content))throw Object.assign(new Error("Embedding input invalid or sensitive"),{status:400});
   const response=await request(config.url,{
     method:"POST",
@@ -64,7 +68,7 @@ export async function embedText(text,{request=fetch}={}){
 export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
   const config=settings();
   if(!config)return {enabled:false,indexed:0};
-  const target=Math.max(1,Math.min(20,Number(batch)||12));
+  const target=Math.max(1,Math.min(20,Math.trunc(Number(batch))||12));
   // Scan beyond unembeddable entries so one sensitive note cannot permanently
   // block all later notes. Bound each pass to protect memory and USB I/O.
   const rows=withCoreDatabase(db=>db.prepare("SELECT m.id,m.content FROM memory_entries m LEFT JOIN memory_vectors v ON v.memory_id=m.id AND v.model=? WHERE m.state='active' AND v.memory_id IS NULL ORDER BY m.rowid LIMIT ?").all(config.model,Math.min(1000,Math.max(80,target*20))));
@@ -124,13 +128,15 @@ export async function rerankWithProvider(query,items,{request=fetch}={}){
   });
 }
 export async function hybridRecall(query,{limit=8,request=fetch}={}){
+  limit=Math.max(1,Math.min(20,Math.trunc(Number(limit))||8));
   const lexical=recallMemory(query,{limit:Math.min(30,Math.max(limit*3,12))});
   const associations=graphRecall(query,{limit:Math.min(20,Math.max(limit*2,8)),hops:2});
   const rankedGraph=personalizedGraphRank(query,{limit:Math.min(20,Math.max(limit*2,8))});
   // Candidate links improve retrieval, but never change the verification state of source memories.
   const graphCombined=rankedGraph.length?reciprocalFusion(associations,rankedGraph,{limit:Math.max(15,limit*3)}):associations;
   const local=graphCombined.length?reciprocalFusion(lexical,graphCombined,{limit:Math.max(15,limit*3)}):lexical;
-  if(!settings())return {mode:"lexical-subword",results:local.slice(0,limit),graphResults:associations.length};
+  if(!settings()||confidential.test(String(query??"")))
+    return {mode:"lexical-subword",results:local.slice(0,limit),graphResults:associations.length};
   try{
     const embedding=await cachedQueryEmbedding(query,{request});
     const semantic=vectorRecall(embedding.vector,{model:embedding.model,limit:Math.min(50,limit*3)});
