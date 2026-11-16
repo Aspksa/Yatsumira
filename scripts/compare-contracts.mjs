@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Local contract revision comparison for UTF-8 text/Markdown exports.
  * Never uploads contract text or sends it to a model.
