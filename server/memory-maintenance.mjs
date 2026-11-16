@@ -117,15 +117,20 @@ export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
   let stopped=false;
   // The embedding provider is opt-in. Never block the synchronous SQLite jobs
   // or launch overlapping HTTP batches when a provider is slow.
+  const reportError=error=>{try{onError(error);}catch{/* Error reporting must not crash maintenance. */}};
   const semanticTick=async()=>{
-    if(stopped||semanticRunning||!embeddingConfigured())return;
+    if(stopped||semanticRunning)return;
     semanticRunning=true;
-    try{await indexMissingEmbeddings({batch:4});}
-    catch(error){onError(error);}
+    try{
+      // Configuration validation may throw synchronously (e.g. malformed URL).
+      // Keep it inside the guarded async job to prevent unhandled rejections.
+      if(!embeddingConfigured())return;
+      await indexMissingEmbeddings({batch:4});
+    }catch(error){reportError(error);}
     finally{semanticRunning=false;}
   };
   // Recover checkpointed jobs once when the local server starts; no network calls.
-  try{recoverInterruptedJobs();}catch(error){onError(error);}
+  try{recoverInterruptedJobs();}catch(error){reportError(error);}
   const job=()=>{try{
     consolidateStep({batch:35});
     indexUniversalGraph({batch:35});
@@ -143,7 +148,7 @@ export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
     scheduleMemoryJob("v12-learning-report",{day});
     scheduleMemoryJob("v13-dialogue-reflection",{day});
     runMemoryJob();
-  }catch(error){onError(error);}};
+  }catch(error){reportError(error);}};
   const timer=setInterval(job,Math.max(60000,intervalMs));
   timer.unref?.();
   // A separate, bounded cadence prevents provider latency from stalling chat.
