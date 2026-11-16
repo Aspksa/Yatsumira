@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Offline automatic batch comparison: <name>.old.txt + <name>.new.txt.
  * No cloud calls, no background process, no additional packages.
