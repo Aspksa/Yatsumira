@@ -45,7 +45,8 @@ export function getNexusCells({limit=5000}={}){
       FROM nexus_cells c JOIN nexus_cell_items i ON i.cell_id=c.id
       GROUP BY c.id ORDER BY c.sector,c.group_name,c.id LIMIT ?`).all(Math.max(1,Math.min(5000,Number(limit)||5000)));
     const total=db.prepare("SELECT COUNT(*) AS n FROM nexus_cells").get().n;
-    return {capacity:CELL_CAPACITY,total,cells:rows.map(row=>({...row,fill:row.used/CELL_CAPACITY})),
+    const members=db.prepare('SELECT knowledge_id FROM nexus_cell_items WHERE cell_id=? ORDER BY knowledge_id');
+    return {capacity:CELL_CAPACITY,total,cells:rows.map(row=>({...row,fill:row.used/CELL_CAPACITY,knowledgeIds:members.all(row.id).map(item=>item.knowledge_id)})),
       truncated:total>rows.length};
   });
 }

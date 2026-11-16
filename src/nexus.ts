@@ -11,6 +11,7 @@ export type NexusSector = { title: string; count: number; start: number; end: nu
 export type NexusLayout = { nodes: NexusNode[]; sectors: NexusSector[]; rings: number[] };
 export type NexusStats = { fps: number; drawn: number; total: number; detail: string; knowledge: number; links: number };
 export type KnowledgeRecord = { id:string; title:string; content:string; sector:number; kind:"fact"|"document"|"agent"; importance:number; source:string; verified:boolean; group?:string; createdAt?:string };
+export type NexusCell = {id:number;sector:number;groupName:string;parentId:number|null;used:number;fill:number;knowledgeIds:string[]};
 export type KnowledgeLink = { source:string; target:string; kind:string; strength:number };
 
 const TWO_PI = Math.PI * 2;
@@ -239,6 +240,47 @@ export class NexusView {
       return a&&b?[{a,b,strength:link.strength}]:[];
     });
     this.placement=placeNexus(this.layout,this.mode,this.links);
+    this.transitioning=false;this.resize();
+    if(this.selectedId&&!mapping.has(this.selectedId))this.selectedId=null;
+  }
+  setCells(cells:readonly NexusCell[],records:readonly KnowledgeRecord[],links:readonly KnowledgeLink[]):void {
+    const source=new Map(records.map(record=>[record.id,record]));
+    const valid=cells.filter(cell=>Number.isInteger(cell.id)&&cell.sector>=0&&cell.sector<8&&cell.knowledgeIds.length>0);
+    const counts=Array.from({length:8},(_,sector)=>valid.filter(cell=>cell.sector===sector).length);
+    const layout=buildNexusLayout(counts);
+    const mapping=new Map<string,NexusNode>();
+    const memberToCell=new Map<string,NexusNode>();
+    for(let sector=0;sector<8;sector++){
+      const slots=layout.nodes.filter(node=>node.sector===sector);
+      const incoming=valid.filter(cell=>cell.sector===sector).sort((a,b)=>a.id-b.id);
+      for(let i=0;i<Math.min(slots.length,incoming.length);i++){
+        const cell=incoming[i],node=slots[i];
+        const members=cell.knowledgeIds.map(id=>source.get(id)).filter((record):record is KnowledgeRecord=>!!record);
+        if(!members.length)continue;
+        node.id="cell-"+cell.id;node.title=cell.groupName+" · "+cell.used+"/32";
+        node.content=members.map(item=>item.title).slice(0,12).join("\\n");
+        node.kind=members[0].kind;node.source="Локальная память";node.actual=true;
+        node.group=cell.groupName;node.importance=members.some(item=>item.importance===3)?3:2;
+        node.radius=2.4+Math.max(0,Math.min(1,cell.fill))*1.5;
+        node.verified=members.some(item=>item.verified);
+        mapping.set(node.id,node);
+        for(const member of members)memberToCell.set(member.id,node);
+      }
+    }
+    const seen=new Set<string>();
+    this.links=links.flatMap(link=>{
+      const a=memberToCell.get(link.source),b=memberToCell.get(link.target);
+      if(!a||!b||a===b)return [];
+      const key=[a.id,b.id].sort().join("|");if(seen.has(key))return [];
+      seen.add(key);return [{a,b,strength:link.strength}];
+    }).slice(0,4000);
+    for(const cell of valid){
+      if(cell.parentId===null)continue;
+      const a=mapping.get("cell-"+cell.id),b=mapping.get("cell-"+cell.parentId);
+      if(a&&b&&a!==b)this.links.push({a,b,strength:1});
+    }
+    this.layout=layout;this.realNodes=[...mapping.values()];
+    this.placement=placeNexus(layout,this.mode,this.links);
     this.transitioning=false;this.resize();
     if(this.selectedId&&!mapping.has(this.selectedId))this.selectedId=null;
   }
