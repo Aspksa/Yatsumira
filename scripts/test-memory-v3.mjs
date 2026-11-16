@@ -7,7 +7,7 @@ import {recallMemory} from "../server/long-memory.mjs";
 import {storeEmbedding,vectorRecall,vectorOverview,reciprocalFusion,rerankCandidates} from "../server/memory-vectors.mjs";
 import {embedText,indexMissingEmbeddings,hybridRecall,rerankWithProvider} from "../server/memory-provider.mjs";
 import {extractCandidates,inspectPendingFacts,pendingConflicts,researchEntities,memoryNeighbors,memoryLayers,reviewCandidateFact,resolveMemoryConflict} from "../server/memory-intelligence.mjs";
-import {consolidateStep,summarizeConversation,memoryMaintenanceStatus,evaluateRetrieval,recordRetrievalEvaluation} from "../server/memory-maintenance.mjs";
+import {consolidateStep,summarizeConversation,memoryMaintenanceStatus,evaluateRetrieval,recordRetrievalEvaluation,startCoreMaintenance} from "../server/memory-maintenance.mjs";
 
 const savedCwd=process.cwd();
 const dir=mkdtempSync(join(tmpdir(),"yatsumira-memory-v3-"));
@@ -171,6 +171,29 @@ try{
   const recorded=recordRetrievalEvaluation(evalCase,q=>recallMemory(q,{limit:20}));
   assert.ok(recorded.mrr>0);
   assert.equal(withCoreDatabase(db=>db.prepare("SELECT COUNT(*) AS n FROM memory_evaluations").get().n),1);
+  // A malformed opt-in embedding URL must not reject the timer callback or
+  // crash the local background scheduler.
+  const originalSetInterval=globalThis.setInterval;
+  const originalClearInterval=globalThis.clearInterval;
+  const callbacks=[];
+  try{
+    globalThis.setInterval=(fn)=>{callbacks.push(fn);return {unref(){}};};
+    globalThis.clearInterval=()=>{};
+    process.env.YATSUMIRA_MEMORY_EMBED_URL="not a valid URL";
+    process.env.YATSUMIRA_MEMORY_EMBED_KEY="test-key";
+    process.env.YATSUMIRA_MEMORY_EMBED_MODEL="test/emb";
+    const errors=[];
+    const stop=startCoreMaintenance({onError:error=>errors.push(error)});
+    assert.equal(callbacks.length,2);
+    await callbacks[1]();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(errors.length,1);
+    stop();
+  }finally{
+    globalThis.setInterval=originalSetInterval;
+    globalThis.clearInterval=originalClearInterval;
+    for(const name of vars)delete process.env[name];
+  }
   assert.ok(coreStatus().memory>=3);
   console.log("[YATSUMIRA CORE v3] ten memory capabilities: schemas, fact sources, conflicts, entities, graph, temporal, hybrid vectors, reranker, summaries, metrics, checkpoints: OK");
 }finally{
