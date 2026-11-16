@@ -12,7 +12,7 @@ import {scheduleMemoryJob,runMemoryJob} from "../server/memory-v8-operations.mjs
 const cwd=process.cwd(),root=mkdtempSync(join(tmpdir(),"yatsumira-v12-"));
 try{
   process.chdir(root);
-  assert.equal(coreStatus().version,12);
+  assert.equal(coreStatus().version,13);
   const first=addKnowledge({content:"«Проект Луна» использует «Модуль Заря» для проверки системы.",sector:0,source:"note"});
   const second=addKnowledge({content:"«Модуль Заря» находится в «Центр Знаний».",sector:1,source:"note"});
   const third=addKnowledge({content:"«Проект Солнце» использует «Модуль Заря».",sector:2,source:"note"});
