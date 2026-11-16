@@ -5,6 +5,7 @@ import {longTermChatContext} from "./memory-v11-longterm.mjs";
 import {recordAnswerAudit} from "./memory-v5-quality.mjs";
 import { hybridRecall } from "./memory-provider.mjs";
 import {searchDocumentChunks} from "./brain-document-index.mjs";
+import {auditContractAnswer} from "./brain-answer-audit.mjs";
 import {startCoreMaintenance,memoryMaintenanceStatus} from "./memory-maintenance.mjs";
 import { recallMemory, makeMemoryContext, memoryOverview } from "./long-memory.mjs";
 import { handleKnowledge } from "./knowledge-api.mjs";
@@ -228,6 +229,10 @@ export function cloudApiPlugin() {
             const response = await cloudRequest("/chat/completions",key,{method:"POST",data:{model,messages,stream:false}});
             const answer = response?.choices?.[0]?.message?.content;
             if (typeof answer !== "string" || !answer.trim()) return json(res,502,{error:"Cloud.ru вернул пустой ответ"});
+            // Evidence audit is diagnostic; no unsupported claim is silently verified.
+            const contractAudit=auditContractAnswer(answer,contractEvidence);
+            if(contractEvidence.length&&contractAudit.unsupportedClaimCount)
+              console.warn("[YATSUMIRA RAG] Contract answer needs source review:",contractAudit.unsupportedClaimCount);
             // Save the complete user/assistant pair atomically only after a real response.
             // This does not mark an AI output as a verified fact.
             const savedExchange=commitAssistantExchange({messages:input.messages,answer,model,
