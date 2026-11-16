@@ -65,35 +65,49 @@ export async function embedText(text,{request=fetch}={}){
     throw Object.assign(new Error("Invalid embedding response"),{status:502});
   return {model:config.model,vector};
 }
+// Progress is volatile: no extra writes to a removable USB database.
+// Each model resumes beyond the last examined row across background ticks.
+const embeddingScanCursors=new Map();
 export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
   const config=settings();
   if(!config)return {enabled:false,indexed:0};
   const target=Math.max(1,Math.min(20,Math.trunc(Number(batch))||12));
-  // Cursor-based paging prevents an arbitrarily long prefix of sensitive or
-  // empty memories from starving later eligible records. Each pass is bounded
-  // to 5000 rows to protect portable USB storage from full-table scans.
   const pageSize=Math.min(250,Math.max(80,target*20));
   const query="SELECT m.rowid AS cursor,m.id,m.content FROM memory_entries m LEFT JOIN memory_vectors v ON v.memory_id=m.id AND v.model=? WHERE m.state='active' AND v.memory_id IS NULL AND m.rowid>? ORDER BY m.rowid LIMIT ?";
-  let indexed=0,skipped=0,failed=0,cursor=0,scanned=0;
+  let indexed=0,skipped=0,failed=0,scanned=0;
+  let cursor=embeddingScanCursors.get(config.model)||0;
+  let wrapped=false;
   while(indexed<target&&scanned<5000&&!failed){
     const rows=withCoreDatabase(db=>db.prepare(query).all(config.model,cursor,Math.min(pageSize,5000-scanned)));
-    if(!rows.length)break;
+    if(!rows.length){
+      // Revisit earlier rows once, including those inserted after the cursor
+      // advanced. Do not loop endlessly over permanently sensitive records.
+      if(wrapped||cursor===0)break;
+      cursor=0;
+      wrapped=true;
+      continue;
+    }
     for(const row of rows){
-      cursor=row.cursor;
       scanned++;
-      if(!row.content?.trim()||confidential.test(row.content)){skipped++;continue;}
+      if(!row.content?.trim()||confidential.test(row.content)){
+        skipped++;
+        cursor=row.cursor;
+        continue;
+      }
       try{
         const result=await embedText(row.content,{request});
         storeEmbedding(row.id,result.model,result.vector);
         indexed++;
+        cursor=row.cursor;
       }catch{
         failed++;
-        // Do not print document text, API credentials or provider responses.
+        // Keep the failed row eligible for the next pass.
         break;
       }
       if(indexed>=target)break;
     }
   }
+  embeddingScanCursors.set(config.model,cursor);
   return {enabled:true,indexed,skipped,failed,remainingUnknown:true,model:config.model};
 }
 function rerankerSettings(){
