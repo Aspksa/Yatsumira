@@ -1,6 +1,7 @@
 /** Backward-compatible local knowledge HTTP API, now backed by SQLite. */
 import {getKnowledgeGraph,addKnowledge} from "./core-db.mjs";
 import {getNexusCells} from "./nexus-cells.mjs";
+import {indexDocumentText} from "./brain-document-index.mjs";
 import {mkdirSync,writeFileSync} from "node:fs";
 import {join,resolve} from "node:path";
 import {randomUUID} from "node:crypto";
@@ -52,8 +53,21 @@ export async function handleKnowledge(req,res,path){
       const root=resolve(process.cwd(),".yatsumira","attachments");
       mkdirSync(root,{recursive:true});
       writeFileSync(join(root,id+ext),buffer,{flag:"wx",mode:0o600});
+      let indexed=false;
+      if((ext===".txt"||ext===".md")&&buffer.length<=2*1024*1024){
+        try{
+          const value=new TextDecoder("utf-8",{fatal:true}).decode(buffer);
+          if(value.trim()){
+            indexDocumentText("attachment:"+id+"/"+name,value);
+            indexed=true;
+          }
+        }catch(error){
+          // Preserve the uploaded file; malformed UTF-8 is not searchable text.
+          if(!(error instanceof TypeError))throw error;
+        }
+      }
       return respond(res,201,{id,name,size:buffer.length,storedLocally:true,
-        indexed:false,notSentToCloud:true});
+        indexed,notSentToCloud:true});
     }
     if(path==="/api/knowledge/ingest"&&req.method==="POST"){
       const data=addKnowledge(await readBody(req));
