@@ -73,10 +73,10 @@ export function placeNexus(layout:NexusLayout,mode:NexusMode,links:readonly {a:N
         const hexRadius=5.1;
         const gap=hexRadius*2+1.2;
         const axial:{q:number;r:number}[]=[{q:0,r:0}];
-        const directions=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+        const directions=[[-1,1],[-1,0],[0,-1],[1,-1],[1,0],[0,1]];
         for(let layer=1;axial.length<ordered.length;layer++){
           let q=layer,r=0;
-          for(const [dq,dr] of directions.slice(1).concat([directions[0]])){
+          for(const [dq,dr] of directions){
             for(let step=0;step<layer;step++){
               if(axial.length<ordered.length)axial.push({q,r});
               q+=dq;r+=dr;
