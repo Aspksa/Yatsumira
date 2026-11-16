@@ -69,24 +69,29 @@ export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
   const config=settings();
   if(!config)return {enabled:false,indexed:0};
   const target=Math.max(1,Math.min(20,Math.trunc(Number(batch))||12));
-  // Scan beyond unembeddable entries so one sensitive note cannot permanently
-  // block all later notes. Bound each pass to protect memory and USB I/O.
-  const rows=withCoreDatabase(db=>db.prepare("SELECT m.id,m.content FROM memory_entries m LEFT JOIN memory_vectors v ON v.memory_id=m.id AND v.model=? WHERE m.state='active' AND v.memory_id IS NULL ORDER BY m.rowid LIMIT ?").all(config.model,Math.min(1000,Math.max(80,target*20))));
-  let indexed=0,skipped=0,failed=0;
-  // Keep indexing sequential: never saturate the USB database or the remote provider.
-  // A failed provider call ends this batch, preserving already committed vectors.
-  for(const row of rows){
-    if(indexed>=target)break;
-    if(!row.content?.trim()||confidential.test(row.content)){skipped++;continue;}
-    try{
-      const result=await embedText(row.content,{request});
-      storeEmbedding(row.id,result.model,result.vector);
-      indexed++;
-    }catch(error){
-      failed++;
-      // Do not print document text, API credentials or provider response bodies.
-      // The next explicit batch can retry the same memory safely.
-      break;
+  // Cursor-based paging prevents an arbitrarily long prefix of sensitive or
+  // empty memories from starving later eligible records. Each pass is bounded
+  // to 5000 rows to protect portable USB storage from full-table scans.
+  const pageSize=Math.min(250,Math.max(80,target*20));
+  const query="SELECT m.rowid AS cursor,m.id,m.content FROM memory_entries m LEFT JOIN memory_vectors v ON v.memory_id=m.id AND v.model=? WHERE m.state='active' AND v.memory_id IS NULL AND m.rowid>? ORDER BY m.rowid LIMIT ?";
+  let indexed=0,skipped=0,failed=0,cursor=0,scanned=0;
+  while(indexed<target&&scanned<5000&&!failed){
+    const rows=withCoreDatabase(db=>db.prepare(query).all(config.model,cursor,Math.min(pageSize,5000-scanned)));
+    if(!rows.length)break;
+    for(const row of rows){
+      cursor=row.cursor;
+      scanned++;
+      if(!row.content?.trim()||confidential.test(row.content)){skipped++;continue;}
+      try{
+        const result=await embedText(row.content,{request});
+        storeEmbedding(row.id,result.model,result.vector);
+        indexed++;
+      }catch{
+        failed++;
+        // Do not print document text, API credentials or provider responses.
+        break;
+      }
+      if(indexed>=target)break;
     }
   }
   return {enabled:true,indexed,skipped,failed,remainingUnknown:true,model:config.model};
