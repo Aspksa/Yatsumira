@@ -99,6 +99,25 @@ try{
   const indexed=await indexMissingEmbeddings({batch:4,request:fake});
   assert.ok(indexed.indexed>=1);
   assert.equal(vectorOverview()[0].count,3);
+  // Regression: an outage after one successful vector must not discard that
+  // vector or prevent a later batch from resuming the remaining entries.
+  const pendingA=addKnowledge({content:"Тестовый документ: поставка продукции на склад номер семь",sector:1,source:"note"});
+  const pendingB=addKnowledge({content:"Тестовый документ: проверка качества продукции номер восемь",sector:1,source:"note"});
+  assert.equal(pendingA.added,true);
+  assert.equal(pendingB.added,true);
+  let attempts=0;
+  const partial=await indexMissingEmbeddings({batch:10,request:async(url,opts)=>{
+    attempts++;
+    if(attempts===2)throw Error("simulated provider outage");
+    return fake(url,opts);
+  }});
+  assert.equal(partial.indexed,1);
+  assert.equal(partial.failed,1);
+  const resumed=await indexMissingEmbeddings({batch:10,request:fake});
+  assert.ok(resumed.indexed>=1,"Remaining vectors should be retried");
+  assert.equal(resumed.failed,0);
+  const completed=await indexMissingEmbeddings({batch:10,request:fake});
+  assert.equal(completed.indexed,0,"Previously indexed memories must not be sent again");
   for(const name of vars)delete process.env[name];
 
   for(let i=0;i<4;i++)saveExchange({conversationId:"default",exchangeId:"summary-"+i,user:"Я проверяю условия договора поставки "+i,assistant:"Тестовый ответ модели "+i,model:"test/model"});
