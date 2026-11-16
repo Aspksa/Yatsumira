@@ -212,7 +212,7 @@ export class NexusView {
   }
 
   setKnowledge(records: readonly KnowledgeRecord[], links: readonly KnowledgeLink[]): void {
-    const clean=records.filter(record=>Number.isInteger(record.sector)&&record.sector>=0&&record.sector<8);
+    const clean=records.filter(record=>Number.isInteger(record.sector)&&record.sector>=0&&record.sector<8).sort((a,b)=>a.id.localeCompare(b.id));
     const base=[0,0,0,0,0,0,0,0];
     const counts=base.map((count,sector)=>count+clean.filter(row=>row.sector===sector).length);
     const layout=buildNexusLayout(counts);
@@ -420,7 +420,7 @@ export class NexusView {
       const hovered=node.id===this.hovered?.id;
       const pulse=this.reducedMotion||this.quality<.9?0:Math.sin(this.animationTime*1.5+node.ring+node.sector)*.15;
       const r=Math.max(2.4,Math.min(4.2,node.radius))+(selected?1.3:hovered?.7:0);
-      ctx.globalAlpha=node.actual?1:Math.max(outer?.56:.34,outer?.65+pulse*.3:.43+pulse);
+      ctx.globalAlpha=node.actual?1:Math.max(.34,.43+pulse);
       ctx.strokeStyle=color;ctx.fillStyle=color;
       if((selected||hovered||node.actual) && this.quality>.65){
         ctx.shadowBlur=selected?14:7;ctx.shadowColor=color;
