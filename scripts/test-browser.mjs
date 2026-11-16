@@ -42,7 +42,7 @@ try {
   const safeRender=await page.evaluate(async()=>{
     const {renderSafeAssistantText}=await import('/src/chat-v14.ts');
     const host=document.createElement('div');
-    renderSafeAssistantText(host,'Код:\\n'+String.fromCharCode(96).repeat(3)+'javascript\\nconst count = 2;\\n'+String.fromCharCode(96).repeat(3));
+    renderSafeAssistantText(host,'Код:'+String.fromCharCode(10)+String.fromCharCode(96).repeat(3)+'javascript'+String.fromCharCode(10)+'const count = 2;'+String.fromCharCode(10)+String.fromCharCode(96).repeat(3));
     return {frames:host.querySelectorAll('pre code').length,keywords:host.querySelectorAll('.syntax-keyword').length};
   });
   assert.equal(safeRender.frames,1);
