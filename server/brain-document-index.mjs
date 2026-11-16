@@ -2,6 +2,7 @@
 import {createHash} from "node:crypto";
 import {withCoreDatabase} from "./core-db.mjs";
 import {chunkDocument} from "./brain-quality.mjs";
+import {confidential} from "./memory-store.mjs";
 const hash=s=>createHash("sha256").update(s).digest("hex");
 function schema(db){
   db.exec("CREATE TABLE IF NOT EXISTS brain_documents(source_id TEXT PRIMARY KEY,digest TEXT NOT NULL,updated_at TEXT NOT NULL)");
@@ -28,12 +29,19 @@ export function indexDocumentText(sourceId,text){
   });
 }
 export function searchDocumentChunks(query,{limit=8}={}){
-  const terms=String(query??"").toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)?.slice(0,8)||[];
+  const terms=[...new Set(String(query??"").toLowerCase().match(/[\\p{L}\\p{N}]{3,}/gu)||[])].slice(0,12);
   if(!terms.length)return [];
   return withCoreDatabase(db=>{
     schema(db);
+    // Bound the scan and rank matches by query-term coverage rather than file order.
     const where=terms.map(()=>"LOWER(content) LIKE ?").join(" OR ");
-    return db.prepare("SELECT id,source_id AS sourceId,chunk_index AS chunkIndex,start_offset AS start,end_offset AS end,content FROM brain_chunks WHERE "+where+" ORDER BY source_id,chunk_index LIMIT ?")
-      .all(...terms.map(t=>"%"+t+"%"),Math.max(1,Math.min(50,limit)));
+    const candidates=db.prepare("SELECT id,source_id AS sourceId,chunk_index AS chunkIndex,start_offset AS start,end_offset AS end,content FROM brain_chunks WHERE "+where+" LIMIT 250")
+      .all(...terms.map(t=>"%"+t+"%"));
+    return candidates.filter(x=>!confidential.test(x.content)).map(row=>{
+      const lower=row.content.toLowerCase();
+      const matches=terms.filter(t=>lower.includes(t)).length;
+      return {...row,score:matches/terms.length};
+    }).sort((a,b)=>b.score-a.score||a.sourceId.localeCompare(b.sourceId)||a.chunkIndex-b.chunkIndex)
+      .slice(0,Math.max(1,Math.min(20,Number(limit)||8)));
   });
 }
