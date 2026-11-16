@@ -536,3 +536,14 @@ When all three `YATSUMIRA_MEMORY_EMBED_URL`, `YATSUMIRA_MEMORY_EMBED_KEY`, and `
 ### Short-lived query embedding cache
 
 Repeated identical semantic search questions reuse their provider-produced query vector for up to five minutes while the local Node process remains open. The in-memory cache holds at most 64 entries, uses hashed keys scoped to provider URL/model/credentials, and is never saved to SQLite or disk. Document vectors still use persistent SQLite indexing. If the provider is not configured, local lexical recall remains available. No additional software or agents are required.
+
+## Offline comparison of contract revisions (text exports)
+
+Compare two UTF-8 contract text exports locally, without Cloud.ru or any external requests:
+
+```sh
+node scripts/compare-contracts.mjs "old-contract.txt" "new-contract.txt" "comparison.json"
+node --test scripts/test-contract-diff.mjs
+```
+
+Supported inputs are `.txt` and `.md` (maximum 2 MiB each). Omit the third argument to print JSON to the console. Existing report files are never overwritten. The report includes added, removed and changed extracted clauses with source excerpts, and every change requires human review. The extraction is heuristic and currently examines only the first 4000 characters of each text; absence of a clause in the report does not prove that the contract lacks it. DOCX/PDF and scanned images are **not** parsed by this command; export their text first. Do not treat the report as a legal opinion.
