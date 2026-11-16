@@ -153,6 +153,15 @@ try{
   }});
   assert.equal(scanned.indexed,1,"Safe records after a sensitive record must still be indexed");
   assert.ok(scanned.skipped>=1);
+  // Regression: the old LIMIT 1000 scan permanently starved an eligible
+  // memory after a large prefix of confidential records.
+  for(let i=0;i<1050;i++)addKnowledge({
+    content:"Служебная запись "+i+": api_key=confidentialtoken123456789",sector:1,source:"note"
+  });
+  addKnowledge({content:"Безопасный документ после тысячи конфиденциальных записей",sector:1,source:"note"});
+  const deepScan=await indexMissingEmbeddings({batch:1,request:fake});
+  assert.equal(deepScan.indexed,1,"Cursor scan must reach an eligible memory beyond 1000 sensitive rows");
+  assert.ok(deepScan.skipped>=1050);
   for(const name of vars)delete process.env[name];
 
   for(let i=0;i<4;i++)saveExchange({conversationId:"default",exchangeId:"summary-"+i,user:"Я проверяю условия договора поставки "+i,assistant:"Тестовый ответ модели "+i,model:"test/model"});
