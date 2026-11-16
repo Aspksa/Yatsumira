@@ -43,14 +43,23 @@ export async function indexMissingEmbeddings({batch=12,request=fetch}={}){
   const config=settings();
   if(!config)return {enabled:false,indexed:0};
   const rows=withCoreDatabase(db=>db.prepare("SELECT m.id,m.content FROM memory_entries m LEFT JOIN memory_vectors v ON v.memory_id=m.id AND v.model=? WHERE m.state='active' AND v.memory_id IS NULL ORDER BY m.rowid LIMIT ?").all(config.model,Math.max(1,Math.min(20,batch))));
-  let indexed=0,skipped=0;
+  let indexed=0,skipped=0,failed=0;
+  // Keep indexing sequential: never saturate the USB database or the remote provider.
+  // A failed provider call ends this batch, preserving already committed vectors.
   for(const row of rows){
-    if(confidential.test(row.content)){skipped++;continue;}
-    const result=await embedText(row.content,{request});
-    storeEmbedding(row.id,result.model,result.vector);
-    indexed++;
+    if(!row.content?.trim()||confidential.test(row.content)){skipped++;continue;}
+    try{
+      const result=await embedText(row.content,{request});
+      storeEmbedding(row.id,result.model,result.vector);
+      indexed++;
+    }catch(error){
+      failed++;
+      // Do not print document text, API credentials or provider response bodies.
+      // The next explicit batch can retry the same memory safely.
+      break;
+    }
   }
-  return {enabled:true,indexed,skipped,remainingUnknown:true,model:config.model};
+  return {enabled:true,indexed,skipped,failed,remainingUnknown:true,model:config.model};
 }
 function rerankerSettings(){
   const url=process.env.YATSUMIRA_MEMORY_RERANK_URL||"";
