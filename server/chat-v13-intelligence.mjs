@@ -20,7 +20,8 @@ const ambiguity=/(?:^|\s)(?:это|тот|ту|его|её|они|она|он|т
 export function classifyChatMessage(content,{recent=[]}={}){
   const query=safe(content,4000),normalized=normalizeMemory(query),primary=detectIntent(query);
   const intents=[...new Set([primary.intent,...Object.entries(keywords).filter(([,re])=>re.test(normalized)).map(([name])=>name)])];
-  const refs=detectReferences(query);
+  const extra=[...query.matchAll(/(?:^|[\s,])(?:ним|ней|ними|нём|нем|нему|ними|этом|этим|тем|ними)(?=[\s,.!?]|$)/giu)].map(m=>({pronoun:m[0].trim(),offset:m.index,requiresContext:true}));
+  const refs=[...detectReferences(query),...extra].sort((a,b)=>a.offset-b.offset).slice(0,16);
   const followup=refs.length>0||query.length<55&&/^(?:дальше|продолжай|ещё|это|тот|так же|сделай)/iu.test(query);
   const previous=recent.filter(x=>x.role==="user").slice(-4);
   const subjects=previous.map(x=>x.content).flatMap(memoryTokens);
