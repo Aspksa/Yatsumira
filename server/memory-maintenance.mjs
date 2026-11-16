@@ -4,6 +4,9 @@
  * a separate bounded background timer. USB-safe SQLite transactions.
  */
 import {randomUUID} from "node:crypto";
+import {existsSync} from "node:fs";
+import {join} from "node:path";
+import {compareDirectory} from "../scripts/auto-compare-contracts.mjs";
 import {withCoreDatabase} from "./core-db.mjs";
 import {embeddingConfigured,indexMissingEmbeddings} from "./memory-provider.mjs";
 import {inspectSourceFacts,researchEntities} from "./memory-intelligence.mjs";
@@ -129,6 +132,19 @@ export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
     }catch(error){reportError(error);}
     finally{semanticRunning=false;}
   };
+  // Local contract comparison is automatic while the Yatsumira server runs.
+  // Missing USB folders are normal; never create a folder just to scan it.
+  const contractDirectory=join(process.cwd(),"Aspksa","Документы","Договоры");
+  const contractTick=()=>{
+    if(stopped||!existsSync(contractDirectory))return;
+    try{
+      const result=compareDirectory(contractDirectory);
+      if(result.failed)reportError(new Error("Contract comparison failed for "+result.failed+" pair(s)"));
+    }catch(error){reportError(error);}
+  };
+  contractTick();
+  const contractTimer=setInterval(contractTick,Math.max(60000,intervalMs));
+  contractTimer.unref?.();
   // Recover checkpointed jobs once when the local server starts; no network calls.
   try{recoverInterruptedJobs();}catch(error){reportError(error);}
   const job=()=>{try{
@@ -154,5 +170,5 @@ export function startCoreMaintenance({intervalMs=600000,onError=()=>{}}={}){
   // A separate, bounded cadence prevents provider latency from stalling chat.
   const semanticTimer=setInterval(()=>{void semanticTick();},Math.max(60000,intervalMs));
   semanticTimer.unref?.();
-  return ()=>{stopped=true;clearInterval(timer);clearInterval(semanticTimer);};
+  return ()=>{stopped=true;clearInterval(timer);clearInterval(semanticTimer);clearInterval(contractTimer);};
 }
