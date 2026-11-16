@@ -55,6 +55,12 @@ try{
   storeEmbedding(graph[0].id,"test/emb",[1,0,0]);
   storeEmbedding(graph[1].id,"test/emb",[0,1,0]);
   assert.equal(vectorOverview()[0].count,2);
+  // Content edits must never leave vectors pointing to outdated text.
+  withCoreDatabase(db=>db.prepare("UPDATE memory_entries SET content=? WHERE id=?").run(
+    "Изменённое условие договора: оплата через 30 календарных дней.",graph[1].id));
+  assert.equal(vectorOverview()[0].count,1);
+  storeEmbedding(graph[1].id,"test/emb",[0,1,0]);
+  assert.equal(vectorOverview()[0].count,2);
   assert.throws(()=>storeEmbedding(graph[0].id,"test/emb",[1,0]),/dimension mismatch/i);
   const semantic=vectorRecall([1,.01,0],{model:"test/emb"});
   assert.equal(semantic[0].id,graph[0].id);
