@@ -8,7 +8,7 @@ import {resolve,join} from "node:path";
 import {randomUUID,createHash} from "node:crypto";
 import {indexMemory,importLegacyMemory,eligibleEpisode} from "./memory-store.mjs";
 
-const SCHEMA=12;
+const SCHEMA=13;
 const ROOT=()=>resolve(process.cwd(),".yatsumira");
 export const coreDatabasePath=()=>join(ROOT(),"yatsumira.sqlite");
 const wordsIgnored=new Set(["это","для","как","при","что","или","уже","все","если","будет","когда","они","меня","тебя","только","надо","теперь","также","есть","можно","нужно","чтобы","тебе","пока","после","the","and","with","from","this"]);
@@ -110,7 +110,14 @@ const sql=[
 "CREATE INDEX IF NOT EXISTS idx_v12_feedback_memory ON memory_v12_feedback(memory_id,kind)",
 "CREATE TABLE IF NOT EXISTS memory_v12_search_profiles(name TEXT PRIMARY KEY,params_json TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'candidate' CHECK(state IN ('candidate','approved','rejected')),created_at TEXT NOT NULL)",
 "CREATE TABLE IF NOT EXISTS memory_v12_learning_runs(id TEXT PRIMARY KEY,job TEXT NOT NULL,report_json TEXT NOT NULL,source_count INTEGER NOT NULL,created_at TEXT NOT NULL)",
-"CREATE INDEX IF NOT EXISTS idx_v12_runs_job ON memory_v12_learning_runs(job,created_at)"
+"CREATE INDEX IF NOT EXISTS idx_v12_runs_job ON memory_v12_learning_runs(job,created_at)",
+"CREATE TABLE IF NOT EXISTS chat_v13_dialogue_analysis(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,exchange_id TEXT NOT NULL,query_digest TEXT NOT NULL,intents_json TEXT NOT NULL,topics_json TEXT NOT NULL,uncertainty INTEGER NOT NULL DEFAULT 0,depth INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,UNIQUE(conversation_id,exchange_id))",
+"CREATE INDEX IF NOT EXISTS idx_chat_v13_analysis_session ON chat_v13_dialogue_analysis(conversation_id,created_at)",
+"CREATE TABLE IF NOT EXISTS chat_v13_feedback(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,exchange_id TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('incorrect','useful','clarification','correction')),comment TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE INDEX IF NOT EXISTS idx_chat_v13_feedback_exchange ON chat_v13_feedback(conversation_id,exchange_id)",
+"CREATE TABLE IF NOT EXISTS chat_v13_tools(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,exchange_id TEXT NOT NULL,tool_name TEXT NOT NULL,parameters_json TEXT NOT NULL,success INTEGER NOT NULL CHECK(success IN (0,1)),summary TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS chat_v13_reflections(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL,window_digest TEXT NOT NULL UNIQUE,topic TEXT NOT NULL,observations_json TEXT NOT NULL,created_at TEXT NOT NULL)",
+"CREATE TABLE IF NOT EXISTS chat_v13_benchmarks(id TEXT PRIMARY KEY,kind TEXT NOT NULL,metrics_json TEXT NOT NULL,created_at TEXT NOT NULL)"
 ];
 export const tokenize=text=>[...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]{4,}/gu)||[]).filter(w=>!wordsIgnored.has(w)).slice(0,120))];
 const digest=text=>createHash("sha256").update(text).digest("hex");
