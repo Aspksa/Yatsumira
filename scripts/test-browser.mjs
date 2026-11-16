@@ -262,6 +262,14 @@ try {
   await page.locator('#app').focus();
   await page.keyboard.press('Enter');
   assert.equal(await page.locator('#nexus-node-badge').textContent(),'НЕ ПРОВЕРЕНО');
+  // Selecting a real atlas node can explicitly attach bounded context to the chat.
+  assert.equal(await page.locator('#nexus-discuss').isVisible(),true);
+  await page.locator('#nexus-discuss').click();
+  assert.equal(await page.locator('#nexus-chat-context').isVisible(),true);
+  assert.match(await page.locator('#nexus-context-label').innerText(),/NEXUS/);
+  await page.locator('#nexus-context-open').click();
+  assert.equal(await page.locator('#nexus-card').isVisible(),true);
+
   assert.match(await page.locator('#nexus-card-meta').textContent(),/Источник.*Локальная заметка/s);
   assert.ok(await page.locator('#nexus-card-related button').count()>=1,'Display selected-node links');
   await page.locator('#nexus-card-related button').first().click();
@@ -309,6 +317,13 @@ try {
   await page.locator('#chat-input').fill('Привет, тест');
   await page.locator('#chat-form button[type=submit]').click();
   await page.getByText('Ответ тестовой модели').waitFor();
+  const graphAction=page.locator('.message.assistant .message-graph-link').last();
+  assert.equal(await graphAction.isVisible(),true);
+  await graphAction.click();
+  assert.equal(await page.locator('#nexus-card').isVisible(),true);
+  await page.locator('#nexus-context-clear').click();
+  assert.equal(await page.locator('#nexus-chat-context').isHidden(),true);
+
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(100);
   assert.equal(await page.locator('.chat-panel').count(),1);
